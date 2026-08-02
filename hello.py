@@ -44,9 +44,16 @@ def speak_on_macos(mini: ReachyMini, message: str) -> None:
         raise RuntimeError("macOS の say コマンドが見つかりません")
 
     with tempfile.TemporaryDirectory(prefix="hello-reachy-mini-") as tmp_dir:
-        audio_path = Path(tmp_dir) / "hello.aiff"
+        audio_path = Path(tmp_dir) / "hello.wav"
         subprocess.run(
-            [say, "-o", str(audio_path), message],
+            [
+                say,
+                "--file-format=WAVE",
+                "--data-format=LEI16@16000",
+                "-o",
+                str(audio_path),
+                message,
+            ],
             check=True,
         )
         mini.media.play_sound(str(audio_path))

@@ -15,7 +15,7 @@ Reachy Mini に接続して、頭とアンテナで挨拶する最初の Python 
 ## セットアップ
 
 ```bash
-uv sync
+uv sync --frozen
 ```
 
 ## 実行
@@ -23,7 +23,7 @@ uv sync
 Reachy Mini Control を起動してロボットへ接続した状態で実行します。
 
 ```bash
-uv run python hello.py
+uv run --frozen python hello.py
 ```
 
 Reachy Mini が正面を向き、頭を傾けながらアンテナを振ったあと、正面の姿勢へ
@@ -31,15 +31,18 @@ Reachy Mini が正面を向き、頭を傾けながらアンテナを振った�
 
 ### 音声付きで実行する
 
-macOS の `say` で挨拶音声を生成し、Reachy Mini のスピーカーで再生します。
+macOS の `say` で挨拶音声を WAV（16 kHz・16 bit PCM）として一時生成し、
+Reachy Mini のスピーカーで再生します。Wireless 版では SDK が WebRTC 接続を
+自動的に使用します。
 
 ```bash
-uv run python hello.py --voice
+uv run --frozen python hello.py --voice
 ```
 
 音声ストリーミングが利用できない構成でも、エラーを表示してモーションは最後まで
-実行します。特に Wireless 版へ Mac から接続する場合は、SDK の WebRTC 対応状況に
-よって音声が再生できないことがあります。
+実行します。`No Reachy Mini Audio USB device found` に続いて
+`GstWebRTCClient initialized` と表示される場合、Wireless 版の WebRTC 接続へ正常に
+切り替わっているため、USB Audio のメッセージは問題ありません。
 
 ## トラブルシューティング
 
@@ -47,6 +50,6 @@ uv run python hello.py --voice
 - ロボットが動かない: `Applications` で実行中の App を停止する
 - Lite 版: Reachy Mini Control を開いたままにして daemon を動作させる
 - Wireless 版: Mac と Reachy Mini を同じネットワークへ接続する
+- 音声アップロードが HTTP 400 になる: 最新の `hello.py` が WAV を生成しているか確認する
 
 公式資料: [Reachy Mini SDK Quickstart](https://huggingface.co/docs/reachy_mini/en/SDK/quickstart)
-
