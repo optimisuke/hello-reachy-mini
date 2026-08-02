@@ -1,0 +1,10 @@
+[project]
+name = "hello-reachy-mini"
+version = "0.1.0"
+description = "A first hello motion for Reachy Mini"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "reachy-mini",
+]
+
