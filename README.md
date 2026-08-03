@@ -80,4 +80,8 @@ python ~/hello_on_robot.py
 このスクリプトでは `connection_mode="localhost_only"` を指定しているため、必ず
 Reachy Mini本体内のdaemonへ接続します。実行前に起動中のAppを停止してください。
 
+## ドキュメント
+
+- [Reachy Mini Application 調査メモ](docs/reachy-mini-applications.md)
+
 公式資料: [Reachy Mini SDK Quickstart](https://huggingface.co/docs/reachy_mini/en/SDK/quickstart)
