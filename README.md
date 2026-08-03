@@ -52,4 +52,32 @@ uv run --frozen python hello.py --voice
 - Wireless 版: Mac と Reachy Mini を同じネットワークへ接続する
 - 音声アップロードが HTTP 400 になる: 最新の `hello.py` が WAV を生成しているか確認する
 
+## Wireless 本体上で実行する
+
+`hello_on_robot.py` は、Wireless 版に内蔵された Raspberry Pi（CM4）上で直接動かす
+スクリプトです。Mac からネットワーク越しに操作せず、本体内の daemon へ
+`localhost` で接続します。
+
+まずMacからスクリプトを転送します。
+
+```bash
+scp hello_on_robot.py pollen@reachy-mini.local:~/hello_on_robot.py
+```
+
+続いてReachy MiniへSSH接続します。
+
+```bash
+ssh pollen@reachy-mini.local
+```
+
+Reachy Mini内のアプリ用Python環境を有効化し、スクリプトを実行します。
+
+```bash
+source /venvs/apps_venv/bin/activate
+python ~/hello_on_robot.py
+```
+
+このスクリプトでは `connection_mode="localhost_only"` を指定しているため、必ず
+Reachy Mini本体内のdaemonへ接続します。実行前に起動中のAppを停止してください。
+
 公式資料: [Reachy Mini SDK Quickstart](https://huggingface.co/docs/reachy_mini/en/SDK/quickstart)
