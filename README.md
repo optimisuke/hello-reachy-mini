@@ -6,7 +6,7 @@ Reachy Mini に接続して、頭とアンテナで挨拶する最初の Python 
 
 - 組み立てと初期設定が完了した Reachy Mini
 - Reachy Mini Control が動作する Mac
-- Python 3.10 以上
+- Python 3.11 以上（Reachy Mini SDK 1.10.0 の要件）
 - [`uv`](https://docs.astral.sh/uv/)（推奨）
 
 実行前に Reachy Mini Control で起動中の App を停止してください。App と Python

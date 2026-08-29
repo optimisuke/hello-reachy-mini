@@ -11,6 +11,7 @@ def main() -> None:
         media_backend="no_media",
     ) as mini:
         print("接続しました。挨拶します！")
+        mini.enable_motors()
         mini.goto_target(
             head=create_head_pose(),
             antennas=[0.0, 0.0],

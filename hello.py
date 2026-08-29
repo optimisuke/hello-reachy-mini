@@ -74,6 +74,7 @@ def main() -> None:
     print("Reachy Mini に接続しています...")
     with ReachyMini(media_backend=media_backend) as mini:
         print("接続しました。挨拶します！")
+        mini.enable_motors()
         greet_with_motion(mini)
 
         if args.voice:

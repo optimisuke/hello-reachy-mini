@@ -2,3 +2,6 @@
 .venv/
 __pycache__/
 *.py[cod]
+
+# カメラで撮影した画像（人物が写るためコミットしない）
+camera_snapshot*.jpg
