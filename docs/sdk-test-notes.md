@@ -954,6 +954,137 @@ HTTPプロキシを置くのが安定（`docs/ideas.md` 参照）。
   公式の説明を読むと設計意図が分かる好例
 - 実測で気づいた現象を、後から公式ドキュメントで裏付けられた流れ
 
+## REST APIプロキシを本体で動かす（成功・2026-08-30）
+
+### カテゴリ
+
+SDK・API / 接続・デプロイ / 記事化の観点
+
+### やったこと
+
+マイコン（ESP32など）から操作できるようにするため、本体上でFastAPIのプロキシを動かし、
+HTTP RESTでロボットを操作した。実装は `reachy_proxy.py`。
+
+```bash
+# 本体上で
+source /venvs/apps_venv/bin/activate
+python reachy_proxy.py       # 既定 0.0.0.0:8080
+
+# Macから
+curl "http://reachy-mini.local:8080/move/groovy_sway_and_roll"
+curl "http://reachy-mini.local:8080/move/proud1?library=emotions"
+curl "http://reachy-mini.local:8080/antennas?left=30&right=-30"
+```
+
+全エンドポイントの動作を確認した。ダンス・感情モーション（音付き）・アンテナ・胴体回転・
+頭の姿勢・内蔵音源・状態取得・404/400のエラー応答。
+
+### 実測した応答時間
+
+| 操作 | 定義 | 応答 |
+| --- | --- | --- |
+| `groovy_sway_and_roll` | 1.84秒 | 2.98秒 |
+| `jackson_square` | 5.00秒 | 8.25秒 |
+| `laughing1`（音付き） | 4.64秒 | 5.87秒 |
+| `wait=false` で17.26秒のモーション | 17.26秒 | **0.15秒** |
+
+`jackson_square` は定義5.00秒に対して8.25秒かかった。`initial_goto`（1.0秒）を引いても
+2.2秒余計で、`laughing1` の差（1.2秒）より大きい。開始姿勢が遠い、または可動範囲の
+大きいモーションは実再生が長引く可能性がある（要検証）。
+
+### 重要な訂正: daemonのRESTにモーションAPIは存在する
+
+以前「REST APIにモーション系エンドポイントは無い」と記録したが**誤り**だった。openapiの
+一覧を分割表示した際に該当部分を読み飛ばしていた。実際には存在する。
+
+```text
+POST /api/move/goto
+POST /api/move/set_target
+POST /api/move/play/recorded-move-dataset/{dataset_name}/{move_name}
+POST /api/move/play/wake_up
+POST /api/move/play/goto_sleep
+POST /api/move/stop
+GET  /api/move/running
+```
+
+実機で確認した挙動。
+
+```bash
+# データセット名のスラッシュはURLエンコードする（%2F）
+curl -X POST "http://reachy-mini.local:8000/api/move/play/recorded-move-dataset/pollen-robotics%2Freachy-mini-dances-library/yeah_nod"
+# → {"uuid":"825aa755-..."} を返す非ブロッキング方式
+
+curl "http://reachy-mini.local:8000/api/move/running"
+# → 再生中は [{"uuid":"..."}]、アイドル時は []
+
+curl -X POST "http://reachy-mini.local:8000/api/move/stop"
+# → ボディ必須（uuid指定）。ボディなしは422
+```
+
+**つまりESP32からdaemonを直接叩くこともできる。** それでもプロキシを置く価値は残る。
+
+- 角度を**度**で受けられる（ESP32側でラジアン変換や4x4行列生成が不要）
+- エンドポイントを単純化できる（全部GET、パスも短い）
+- データセット名のURLエンコードを隠せる
+- 複数操作をまとめた高レベルAPIを作れる
+
+### 発見: `async_play_move` は `await` 必須（タスクA-3の答え）
+
+`play_move` と `async_play_move` は**ソースが同一**で、`play_move.__wrapped__` が
+`async_play_move` を指している。**`play_move` は非同期版の同期ラッパー**だった。
+
+```python
+inspect.iscoroutinefunction(ReachyMini.play_move)        # False
+inspect.iscoroutinefunction(ReachyMini.async_play_move)  # True
+ReachyMini.play_move.__wrapped__                         # async_play_move
+```
+
+そのため `async_play_move` を同期コードから呼ぶと**コルーチンが生成されるだけで実行され
+ない**。ログに次が出て、ロボットは動かない。
+
+```text
+RuntimeWarning: coroutine 'ReachyMini.async_play_move' was never awaited
+```
+
+関節角を時系列でサンプリングして、実際に動いていないことを確認した（変化は±0.002の
+ノイズのみ）。**非同期に再生したいなら、同期版 `play_move` をスレッドで回す**のが確実。
+
+```python
+threading.Thread(target=lambda: mini.play_move(move), daemon=True).start()
+```
+
+### 実装のハマりどころ
+
+**1. `/state` でロックを取ると再生中にタイムアウトする**
+
+再生スレッドがロックを保持し続けるため、状態取得がロック待ちで詰まった。**読み取りは
+ロック不要**にして解決した。書き込み（動かす操作）だけを排他する。
+
+**2. `is_move_running` はPython SDKから取れない**
+
+`client.get_status()` が返す `DaemonStatus` に `is_move_running` は無い。`.state` は
+daemonのライフサイクルenum（`running` など）で、関節や再生状態ではない。`StateSnapshot`
+には存在するが、SDKのクライアントに取得口が無い。**daemonの `GET /api/move/running` を
+使うのが早い**。
+
+**3. `nohup` だけではSSH切断で止まることがある**
+
+`ssh -f` + `nohup setsid ... < /dev/null &` にすると確実に切り離せた。
+
+**4. SDKの同時接続は可能だった**
+
+プロキシが接続を保持したままでも、別プロセスから `ReachyMini()` で接続して操作できた。
+Appとスクリプトの排他（`robot-app-lock-status`）とは別の話らしい（要検証）。
+ただし同時に動かすと指令が競合するため、実運用では避けるべき。
+
+### 記事化の観点
+
+- 「マイコンからロボットを操作する」構成として、プロキシ層を置く設計は分かりやすい
+- 公式ドキュメントに無いdaemonのREST APIを、openapi.jsonから発見できる
+- 自分の過去メモの誤り（モーションAPIが無い）を、実際に叩いて訂正した流れ
+- `async_` 接頭辞のメソッドを同期コードから呼んで動かない、という初学者が必ず踏む罠
+- 排他ロックの範囲設計（読み取りは外す）は実際にタイムアウトして気づいた
+
 ## SDK 1.10.0への更新とPython要件
 
 ### カテゴリ
@@ -1941,3 +2072,209 @@ clone先  /Users/ito/Private/reachy_mini_conversation_app
 - HF Inference Providers に OpenAI互換の `/v1/audio/speech` があるか（TTSの向き先）
 - プロンプトキャッシュが `responses-api` 経由で効くか
 - `audio.input.transcription.model` をHF側サーバが尊重するか（1行書き換えで検証可能）
+
+## 直接API版バックエンドの実装（2026-08-30）
+
+fork（`/Users/ito/Private/reachy_mini_conversation_app`）に `CONVERSATION_BACKEND=direct` を追加し、
+ハンドラ内 VAD → STT → LLM → TTS を自前で回す `DirectCascadeHandler` を実装した。
+既定（`huggingface`）は無改造で残してあるので、日本語が駄目なら env 1行で戻せる。
+
+追加・変更したファイル:
+
+```text
+新規 src/reachy_mini_conversation_app/direct_cascade.py    # ハンドラ本体
+新規 src/reachy_mini_conversation_app/speech_services.py   # STT/LLM/TTS の抽象と OpenAI互換実装
+新規 src/reachy_mini_conversation_app/voice_activity.py    # エネルギーVAD（発話区切り）
+新規 src/reachy_mini_conversation_app/audio/pcm.py         # WAV化・PCMデコード・リサンプル
+新規 profiles/default_ja/profile.md                        # 日本語で話すプロファイル（バンドル品は複製）
+変更 config.py / main.py / console.py / streaming.py / conversation_handler.py
+```
+
+### 現象：新バックエンドだとUIが「未接続」のまま出る（実装前に発見）
+
+- **原因**：`console.py` の `_backend_connected()` が `vars(self.handler)["connection"]` を直接見ていた。
+  Realtime ハンドラの属性名に依存した実装で、`connection` 属性を持たないハンドラは常に未接続扱い。
+- **解決**：`self.handler._is_connected()`（基底クラスの抽象メソッド）を呼ぶよう変更。
+  `console.py:582` が既に `_is_connected()` を呼んでいた前例があるので方針も一貫する。
+- **学び**：`ConversationHandler` を実装するときは抽象メソッド以外にも
+  「基底クラス経由でない暗黙の期待」がある。`vars(handler)` / `getattr(handler, ...)` を grep して洗い出すこと。
+
+### 現象：`start_up()` が返ると5秒後に再接続が走る
+
+- **原因**：`console.py` の `_run_handler_startup_loop()` は `await handler.start_up()` の
+  **正常 return を「セッション終了」と解釈**して `_backend_retry_delay`（5秒）後にやり直す設計。
+  Realtime 実装は `async for event in connection` でセッション寿命ぶんブロックしている。
+- **解決**：`start_up()` の末尾で `await self._stopped.wait()`（`shutdown()` がセットする）してブロックする。
+- **学び**：`start_up()` は「起動処理」ではなく「セッションを張っている間ずっと動く」契約。
+
+### 現象：TTS音声のサンプルレートを誰も見てくれない
+
+- **原因**：`console.py` の `play_loop` は `handler.emit()` が返す `(rate, samples)` の
+  **rate を捨てて** `robot.media.push_audio_sample()` に渡す。SDK 側は
+  `AudioBase.SAMPLE_RATE = 16000` 固定（入力 `get_audio_sample()` も 16kHz float32 mono）。
+  一方 OpenAI `/v1/audio/speech` の `response_format="pcm"` は **24kHz 固定**（レート指定不可）。
+- **解決**：ハンドラ側で 24k→16k にリサンプルしてから queue に載せる。
+- **学び**：会話アプリの音声配管は入出力とも 16kHz mono 決め打ち。外部TTSを足すなら変換は自分の責任。
+
+### 収穫：scipy と onnxruntime は既に依存に入っている
+
+`reachy-mini` 1.10.0rc5 の依存に `scipy` と `onnxruntime` がある（`uv.lock` で確認）。つまり:
+
+- リサンプルは `scipy.signal.resample_poly` が**新規依存なし**で使える（自作FIRは不要だった）
+- silero-VAD の ONNX 版も **onnxruntime の追加インストールなし**で後から差し替えられる
+  （モデルファイルの配布だけが課題）。今回はエネルギーVADで始めたが、退路はある。
+
+### 現象：エネルギーVADが一度も発火しない
+
+- **原因**：ノイズフロアを「全ての窓」で更新していたため、発話オンセットを数えている 6 窓（0.12秒）のあいだに
+  **フロア自身が発話レベルへ引き上げられ、閾値（フロア×3）が入力を追い越した**。
+  0.02 RMS の入力に対しフロアが 0.006→0.0067 に上がるだけで閾値が 0.02 を超える。
+- **解決**：非 voiced（背景と判定した）窓だけでフロアを学習する。
+- **学び**：適応閾値は「自分が測っている対象で自分を更新しない」。教科書どおりだが、実装すると踏む。
+
+### 現象：`RuntimeWarning: Mean of empty slice` が出て区切りがおかしい
+
+- **原因**：`push()` が窓をループしている最中に、発話確定 → `reset()` が
+  **入力バッファ `_pending` を空にしていた**。ループは以降 空スライスを処理していた。
+- **解決**：`_pending` の所有を `push()` に一元化し、ループ前に残りを確定させる。`reset()` は発話状態だけ触る。
+- **学び**：ステートマシンのリセットが、呼び出し側のイテレーション対象を壊していないか確認する。
+
+### 連続騒音はエネルギーVADの原理的な弱点
+
+閾値を越える騒音（扇風機など）が鳴り続けると、voiced 判定が続いてフロア学習が止まり、
+20秒の発話として切られ続ける。対策として **max_utterance で切ったときだけ、その区間のRMSを
+新しいノイズフロアとして再学習**する自己修復を入れた。人間の発話が20秒で切られた場合も、
+直後の無音でフロアは速く（係数0.3）落ちるので次のターンには影響しない。
+
+### 最小発話長は「voiced 窓の合計」で見る
+
+`min_utterance_s` を utterance 全体の長さで判定すると、preroll（0.3秒）＋末尾無音（0.7秒）が
+含まれるので 0.2秒の咳でも 1.2秒になり、フィルタとして機能しない。voiced と判定した窓の合計で見る。
+
+### OpenAI SDK 2.28 の細部
+
+- async の `client.audio.speech.create(...)` は `HttpxBinaryResponseContent` を返すので
+  **`await response.aread()`** でバイト列を取る。
+- chat completions のツール定義は Realtime と形が違う（`{"type":"function","function":{...}}`）。
+  ストリームのツール呼び出しは `delta.tool_calls[i]` に **index ごとの断片**で来るので
+  `id` は最初の断片、`arguments` は連結して組み立てる。
+- `numpy` 絡みで mypy strict が `no-any-return` を出す場合、`np.clip(...).astype(...)` を
+  一度 注釈付き変数に受けると通る（scipy に型がないため）。
+
+### `REALTIME_TRANSCRIPTION_LANGUAGE=ja` がついに効く
+
+直接バックエンドの STT language にこの既存変数をそのまま流用した。新しい変数を増やさずに、
+これまで「読み込まれるが無視されていた」設定が意味を持つようになる。
+
+### 実機での確認手順（次にやること）
+
+```bash
+rsync -a --delete --exclude .git --exclude .venv \
+  /Users/ito/Private/reachy_mini_conversation_app/ pollen@reachy-mini.local:/tmp/conv-app/
+ssh pollen@reachy-mini.local '/venvs/apps_venv/bin/pip install /tmp/conv-app'
+# instance の .env に CONVERSATION_BACKEND=direct / OPENAI_API_KEY / REALTIME_TRANSCRIPTION_LANGUAGE=ja
+#   REACHY_MINI_CUSTOM_PROFILE=default_ja を書く
+curl -X POST http://localhost:8000/api/apps/start-app/reachy_mini_conversation_app
+journalctl -u reachy-mini-daemon -f | grep -E "role=(user|assistant)|Direct backend|Turn latency"
+```
+
+確認したいのは `role=user content=...` に**日本語が出るか**（STT の切り分け点）、
+`Turn latency: assistant text ... ms` の実測、VAD 閾値（`DIRECT_VAD_*`）の実環境での妥当性。
+
+### ローカルでのゲート結果（2026-08-30）
+
+`uv sync --frozen` 済みの `.venv` で:
+
+```text
+ruff format --check .   87 files already formatted
+ruff check .            All checks passed
+mypy (strict, 49 files) Success
+pytest                  360 passed, 3 failed
+```
+
+失敗3件は `tests/test_personality_avatars.py` で、**このマシンに git-lfs が入っておらず
+アバターSVGがLFSポインタのまま**なのが原因（`assert '<svg' in 'version https://git-lfs...'`）。
+実装とは無関係。pristine な worktree でも同じ。
+
+もう一点、`tests/test_console.py` が丸ごとハングする現象に当たった:
+
+- **原因**：`_backend_connected()` を `handler._is_connected()` に変えたところ、
+  テストのハンドラが `MagicMock` なので **MagicMock が返り、JSON-RPC 応答の
+  シリアライズができずクライアントが待ち続けた**（例外ではなく無応答になる）。
+- **解決**：`bool(...)` で包む（戻り値の型注釈どおりにする）。テスト側の偽ハンドラにも
+  `_is_connected()` を実装、または `_is_connected.return_value = False` を設定。
+- **学び**：JSON-RPC の応答に入る値は必ず素の型にする。MagicMock は「例外を出さずに固まる」
+  という最悪の壊れ方をする。
+
+### 実APIでの疎通確認は未達（鍵が401）
+
+STT/TTS だけを実APIに投げる確認スクリプトを書いたが、環境変数の `OPENAI_API_KEY` が
+**401 invalid_api_key** で通らなかった。有効な鍵を入れれば次のスクリプトで
+「日本語を合成 → 16kHzへリサンプル → 文字起こし」を一発で確認できる:
+
+```python
+# /tmp/smoke_direct.py
+import asyncio, os, sys
+sys.path.insert(0, "/Users/ito/Private/reachy_mini_conversation_app/src")
+from openai import AsyncOpenAI
+from reachy_mini_conversation_app.audio.pcm import resample
+from reachy_mini_conversation_app.speech_services import (
+    OpenAICompatibleSpeechToText, OpenAICompatibleTextToSpeech,
+)
+
+async def main() -> None:
+    client = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"], timeout=60.0)
+    tts = OpenAICompatibleTextToSpeech(client, "gpt-4o-mini-tts", 24000, voice_override=None)
+    stt = OpenAICompatibleSpeechToText(client, "gpt-4o-transcribe", "ja")
+    pcm24 = await tts.synthesize("今日はいい天気ですね。", "Ono_Anna")
+    pcm16 = resample(pcm24, 24000, 16000)
+    print(len(pcm24) / 24000, "s ->", await stt.transcribe(pcm16, 16000))
+    await client.close()
+
+asyncio.run(main())
+```
+
+ここで日本語が返れば、実機で詰まっていた STT の1点が解消していることになる。
+LLM 段（HF router / Qwen3-4B）は実機で既に確認済みだが、このマシンには HF トークンがない。
+
+### 鍵なしでの結線確認：ローカルにOpenAI互換サーバを立てて全段を通した
+
+実APIの鍵が使えなかったので、`/v1/audio/transcriptions`・`/v1/audio/speech`・
+`/v1/chat/completions`(SSE) を返すFastAPIサーバをローカルに立て、`DIRECT_*_BASE_URL` を
+そこへ向けて `DirectCascadeHandler` を丸ごと動かした（スクリプト: `/tmp/local_stack_check.py`）。
+ユニットテストのフェイクでは分からない**ワイヤ形式**が確認できる。
+
+結果（すべて期待どおり）:
+
+```text
+transcriptions: model=gpt-4o-transcribe language=ja
+                wav=(1ch, 2bytes, 16000Hz, 20800frames=1.3s) name=utterance.wav
+speech:         model=gpt-4o-mini-tts voice=nova format=pcm
+                input='やあ、元気？' / 'またね。'      ← 文単位で分割されている
+chat:           model=Qwen/Qwen3-4B-Instruct-2507 tools=['dance']
+                roles= system,user
+                     → system,user,assistant,user
+                     → system,user,assistant,user,assistant,tool
+playback:       39 frames / 24000 samples @16k = 1.50s（24kHz 0.5s×3 → 16kHz 0.5s×3）
+```
+
+確認できたこと:
+
+- `voice = "Ono_Anna"`（プロファイル）→ プロバイダの `nova` へのマッピングが効いている
+- SSE のツール呼び出しが **2つの断片に分かれて届いても** `{"name":"macarena"}` に組み立てられる
+- ツールは実際に `dispatch_tool_call` を通って走った（`{"status":"queued","move":"head_tilt_roll"}` が返った）
+- ツール結果を `role=tool` で戻して**2周目の応答**まで回る
+- `profiles/default_ja` が実パスで読まれ、日本語の greeting が最初のターンとして送られる
+- リサンプルで**尺が保たれている**（0.5s×3 = 1.50s）
+- 発話区切り：「やあ、元気？」で読点では切らず、`？`『。』で切っている
+
+このスクリプトは**リポジトリには入れていない**（uvicorn をスレッドで立てる重いフィクスチャで、
+CIでポート/タイミング由来のflakyになりやすい）。振る舞いのテストは
+`tests/test_direct_cascade.py` などのユニットテスト側で担保している。
+
+残るは実機での確認だけ:
+
+1. 実際のマイク音声で VAD 閾値（`DIRECT_VAD_*`）が妥当か
+2. `role=user content=...` に**日本語**が出るか（実APIのSTT）
+3. ターン遅延（`Turn latency: assistant text ... ms`）とCM4のCPU負荷
+

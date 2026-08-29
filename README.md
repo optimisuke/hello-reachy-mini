@@ -80,8 +80,55 @@ python ~/hello_on_robot.py
 このスクリプトでは `connection_mode="localhost_only"` を指定しているため、必ず
 Reachy Mini本体内のdaemonへ接続します。実行前に起動中のAppを停止してください。
 
+## HTTP REST で操作する（本体上でプロキシを動かす）
+
+`reachy_proxy.py` は Reachy Mini 本体上で動かす HTTP プロキシです。ESP32 のような
+マイコンから操作できるよう、すべて GET のシンプルな REST を公開します。
+
+まず本体へ転送して起動します。
+
+```bash
+scp reachy_proxy.py pollen@reachy-mini.local:~/
+ssh pollen@reachy-mini.local
+source /venvs/apps_venv/bin/activate
+python reachy_proxy.py        # 既定は 0.0.0.0:8080
+```
+
+同じネットワークから叩きます。
+
+```bash
+curl http://reachy-mini.local:8080/                       # エンドポイント一覧
+curl http://reachy-mini.local:8080/moves                  # ダンス19種の一覧
+curl "http://reachy-mini.local:8080/moves?library=emotions"   # 感情85種の一覧
+curl "http://reachy-mini.local:8080/move/simple_nod"          # ダンス再生
+curl "http://reachy-mini.local:8080/move/laughing1?library=emotions"  # 音付き
+curl "http://reachy-mini.local:8080/move/dance2?library=emotions&wait=false"  # 待たない
+curl "http://reachy-mini.local:8080/antennas?left=30&right=-30"
+curl "http://reachy-mini.local:8080/body_yaw?deg=20"
+curl "http://reachy-mini.local:8080/head?pitch=-10"
+curl http://reachy-mini.local:8080/state                  # 現在の関節角と再生状態
+curl http://reachy-mini.local:8080/cancel                 # 再生を中断
+```
+
+角度はすべて度で指定します。`wait=false` を付けると再生完了を待たずに応答が返るため、
+長いモーション（最長19.76秒）でもマイコン側のタイムアウトを気にせず呼べます。完了は
+`/state` の `playing` で確認できます。
+
+マイコンからは2行で呼べます。
+
+```cpp
+http.begin("http://reachy-mini.local:8080/move/laughing1?library=emotions&wait=false");
+http.GET();
+```
+
+FastAPI と uvicorn は本体の `apps_venv` に最初から入っているため、追加インストールは
+不要です。
+
 ## ドキュメント
 
 - [Reachy Mini Application 調査メモ](docs/reachy-mini-applications.md)
+- [SDK 実機テストメモ](docs/sdk-test-notes.md)
+- [検証タスク一覧](docs/tasks.md)
+- [アイデアメモ](docs/ideas.md)
 
 公式資料: [Reachy Mini SDK Quickstart](https://huggingface.co/docs/reachy_mini/en/SDK/quickstart)

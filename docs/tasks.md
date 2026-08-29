@@ -31,6 +31,7 @@
 | `recorded_moves_on_robot.py` | 本体 | 動作確認済み（ダンス19種・感情85種） |
 | `antenna_input_on_robot.py` | 本体 | 動作確認済み |
 | `mic_recording_on_robot.py` | 本体 | 動作確認済み（合図音付き） |
+| `reachy_proxy.py` | 本体 | 動作確認済み（HTTP REST、8080番） |
 
 ---
 
@@ -105,17 +106,18 @@ mini.play_move(moves.get("simple_nod"), sound=True)
 
 | P | 状態 |
 | --- | --- |
-|  | 未着手 |
+|  | 完了（2026-08-30） |
 
-docstringはどちらも "Asynchronously play a Move" と書かれており、違いが不明。
+結果: **`play_move` は `async_play_move` の同期ラッパー**だった。両者のソースは同一で、
+`play_move.__wrapped__` が `async_play_move` を指す。
 
-やること:
+- `async_play_move` は `await` 必須のコルーチン。同期コードから呼ぶと
+  `RuntimeWarning: coroutine ... was never awaited` が出るだけで**ロボットは動かない**
+  （関節角をサンプリングして未動作を確認済み）
+- 非同期に再生したいなら、同期版 `play_move` をスレッドで回すのが確実
+- `cancel_move()` での中断は成功した（プロキシの `/cancel` で確認）
 
-- 両者を呼んで戻るタイミングを計測する
-- `cancel_move()` で再生を中断できるか確認する
-- `play_frequency`（既定100 Hz）を下げると動きがどう変わるか
-
-完了条件: 使い分けの基準を説明できる。
+残り: `play_frequency`（既定100 Hz）を下げたときの動きの変化は未計測。
 
 ## A-4. モーションを自作する（記録・再生）
 
@@ -430,7 +432,7 @@ URDFとSTLが取れるので、シミュレーションや可視化ができる�
 
 | P | 状態 |
 | --- | --- |
-|  | 未着手 |
+|  | 未着手（プロキシの常駐化とセットで必要） |
 
 `reachy_mini.apps` に `app`、`manager`、`sources`、`jsonrpc_server` がある。
 既存Appはhf_space（HuggingFace Space）として配布されている。
