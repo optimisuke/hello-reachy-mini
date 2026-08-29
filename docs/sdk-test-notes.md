@@ -244,7 +244,7 @@ Mac版 `body_rotation.py` との差分は3点のみで、モーションのコ�
   初期化は不要
 - ここでもonnxruntimeのGPU警告は出るが無害（[鍵認証の項](#鍵認証でエージェントから本体実行を自動化する成功2026-08-29)と同じ）
 
-## 音声再生（未成功）
+## 音声再生（解決 2026-08-30・原因は未確定）
 
 ### カテゴリ
 
@@ -337,14 +337,57 @@ ssh pollen@reachy-mini.local \
 - `README.md` に「16 kHz・16 bit PCMで生成」と書いているが、これはこちら側で決めた
   仕様であり、本体の要求仕様ではない。本体はどちらの形式も再生できた
 
-### 残る切り分け
+### Mac版も再テストで成功した（2026-08-30）
 
-Mac→本体の音声送信経路に絞られたため、次はそこを見る。
+送信経路の調査に入る前に、念のためMac版 `audio_playback.py` をそのまま再実行したら
+**音が鳴り、終了コード0で正常終了した**。以前の「約90秒待っても終わらない」症状は
+再現しなかった。WebRTCのログも `Audio send chain ready (bidirectional audio enabled)`
+まで到達していた。
 
-1. Mac版でflush付きログを入れ、アップロードと再生要求のどちらで止まるか特定する
-2. 各処理にタイムアウトを設定し、ハングの箇所を確定する
-3. Mac版実行中のdaemonログを取得する（顔追跡と同様に固有の警告が出る可能性がある）
-4. 顔追跡の教訓を踏まえ、`media_backend` などの引数を既定値のまま実行して比較する
+つまりMac経由の音声再生は現在は動作する。ハングも無音も起きない。
+
+### 原因は未確定（推測の域）
+
+再テストで直ってしまったため、当時の失敗要因を確定できていない。前回の失敗時から
+変わった点は次の3つで、どれが効いたかは切り分けていない。
+
+1. SDKと本体daemonを1.9.0から1.10.0へ更新した
+2. スクリプトに `enable_motors()` を追加した（音声とは直接関係しないはずだが、
+   接続直後の状態が変わった可能性はある）
+3. 実機Appを停止した状態でテストした（前回は競合していた可能性がある）
+
+もっとも疑わしいのは1のバージョン更新（推測）。ただし当時のログを残していないため
+断定できない。**再現しなくなった不具合は原因を特定できない**という教訓として記録する。
+
+### この一件で確定した事実
+
+推測ではなく確定した事実は次のとおり。
+
+- daemonはMacの `say` が生成する形式（mono / 16000 Hz / 16bit PCM）をそのまま再生できる
+- 本体内蔵WAV（stereo / 44100 Hz）とMac生成WAVの形式差は、再生可否に影響しない
+- `mini.media.play_sound()` は非ブロッキング。呼び出し後に待ち時間を入れないと、
+  `with` を抜けた時点で音が切れる
+- Wireless版では `No Reachy Mini Audio USB device found!` の後に
+  `GstWebRTCClient initialized` と出れば正常。USB Audio未検出はエラーではない
+- 正常時のWebRTCログは `Audio send chain ready (bidirectional audio enabled)` まで進む。
+  次に音声が鳴らない事象が起きたら、この行まで到達しているかが切り分けの目印になる
+
+### 学び
+
+- 「本体内蔵WAVは鳴るがMac生成WAVは鳴らない」から形式差を疑ったが、形式差は原因では
+  なかった。**目立つ差分が原因とは限らない**
+- 実行場所を変えて同じ入力を試すと、入力（データ）と経路を分離できる。今回は
+  「WAVを本体へ送って本体で鳴らす」ことで形式を無罪と確定させた
+- 調査に着手する前に、**まず現状をそのまま再実行して再現性を確認する**べきだった。
+  今回は経路の調査に入る直前に再実行して、直っていることに気づいた
+- 失敗時のログを残していないと、直った後に原因を特定できなくなる。次からは失敗時点の
+  daemonログとSDKバージョンを保存する
+
+### 記事化の観点
+
+- 「再現しなくなったバグ」の扱い。原因未確定のまま解決扱いにするときの記録の書き方
+- バージョン更新で直った可能性があるなら、まず更新してから調査するほうが早い
+- 切り分けの型として「入力を固定して経路を変える」「経路を固定して入力を変える」
 
 ### 移植で分かった注意点
 
@@ -622,7 +665,209 @@ daemonだけがカメラを開いて配る。
 - `start_head_tracking(weight=...)` の `weight` は 0〜1。0は「検出を止めるが
   trackerは破棄しない」安価なON/OFF用
 
-## SDK 1.10.0への更新とPython要件
+## Recorded Moves（ダンス・感情モーション）成功・2026-08-30
+
+### カテゴリ
+
+SDK・API / 実機・ハードウェア / 記事化の観点
+
+### 2つのライブラリが最初から使える
+
+ダンスと感情モーションは同じ Recorded Moves の仕組みで、HuggingFaceのデータセットと
+して配布される。**daemon起動時にプリダウンロードされる**ため、追加の設定なしで即再生
+できた（`preload_default_datasets()` が起動時に走る）。
+
+| ライブラリ | データセット | 件数 |
+| --- | --- | --- |
+| ダンス | `pollen-robotics/reachy-mini-dances-library` | 19 |
+| 感情 | `pollen-robotics/reachy-mini-emotions-library` | 85 |
+
+```python
+from reachy_mini.motion.recorded_move import RecordedMoves
+library = RecordedMoves("pollen-robotics/reachy-mini-dances-library")
+print(library.list_moves())
+move = library.get("simple_nod")
+print(move.duration, move.sound_path)
+mini.play_move(move, initial_goto_duration=1.0, sound=True)
+```
+
+### 性質の違いが明確だった
+
+- **ダンスは全19件が1.82〜5.00秒で、すべて音なし。** 音楽に合わせて組み合わせる素材と
+  いう位置づけに見える（推測）
+- **感情は85件中84件が音付き**（`waiting` のみ音なし）。長さは2.14秒（`inquiring1`）
+  から19.76秒（`sleep1`）まで幅がある
+- `RecordedMove` は `duration` と `sound_path` を持つので、**再生前に長さと音の有無が
+  分かる**。危険な長さのモーションを事前に弾ける
+
+### 実測
+
+`simple_nod`（定義1.82秒）→ 実測2.84秒。`laughing1`（4.64秒）→ 5.70秒、
+`proud1`（3.76秒）→ 4.87秒、`surprised1`（2.48秒）→ 3.58秒。いずれも
+**定義＋約1.1秒**で、`initial_goto_duration=1.0`（開始姿勢への移動）とほぼ一致した。
+
+### 注意点
+
+- **音を鳴らすなら `media_backend` を既定（`default`）にする。** `no_media` では
+  顔追跡と同じ理由で音が出ない
+- 再生前に `enable_motors()` と頭を正面へ上げる処理が必要（待機姿勢は頭が下がっている）
+- 存在しない名前を `get()` へ渡す前に `list_moves()` で検証すると、ロボットを動かして
+  から失敗するのを避けられる
+
+### 記事化の観点
+
+- 「箱から出してすぐ104種類のモーションが使える」は記事の見どころになる
+- ダンスは音なし・感情は音付きという設計の違い
+- `duration` を事前に読めるので、安全確認を自動化できる
+
+## アンテナを物理入力として使う（成功・2026-08-30）
+
+### カテゴリ
+
+SDK・API / 実機・ハードウェア / 記事化の観点
+
+### モーター名が指定できる
+
+`enable_motors(ids=[...])` / `disable_motors(ids=[...])` は個別のモーター名を取る。
+有効な名前は `src/reachy_mini/assets/config/hardware_config.yaml` に対応する。
+
+```text
+body_rotation, stewart_1 … stewart_6, right_antenna, left_antenna
+```
+
+アンテナだけトルクを切れば、**頭と胴体は姿勢を保ったまま**アンテナを手で動かせる。
+
+```python
+mini.disable_motors(ids=["left_antenna", "right_antenna"])
+left, right = mini.get_present_antenna_joint_positions()  # ラジアン
+```
+
+### 実測して分かったこと
+
+20秒間、0.5秒間隔で読み取った結果。
+
+- **左右が独立して読める。** 片方だけ動かしても他方は値を保つ
+- **可動域は広い**: 左 83.1°、右 186.6°（右は +159.9° まで回った）
+- **符号が左右で逆。** 左は手前へ倒すと負、右は正に増える（鏡像配置のため）
+- **静止時の値は安定**（±0.1°程度）。しきい値判定に十分使える
+- **ゼロ点はズレる。** 開始時点で左 -0.6°、右 +21.4° だった。手で動かした位置が
+  そのまま残るため、**絶対角度ではなく起動時の値を基準にする必要がある**
+- **戻り止めがない。** トルクを切ると倒した位置に留まる（バネで戻らない）
+
+### 用途の判断
+
+ボタンではなく**ダイヤル／レバー**として扱うのが妥当。
+
+- 向く用途: 値の入力、大きく倒したことをイベントとして検出する
+- 向かない用途: 「押して離す」というボタン的な操作
+
+### トルクを戻すときの注意
+
+トルクを戻した瞬間に、直前の目標値へ跳ねる可能性がある。復帰直後に**現在値を目標へ
+設定**すると跳ねない。
+
+```python
+mini.enable_motors(ids=["left_antenna", "right_antenna"])
+left, right = mini.get_present_antenna_joint_positions()
+mini.goto_target(antennas=[left, right], duration=0.5)
+```
+
+### 記事化の観点
+
+- モーターを部分的に切れることは、触って遊べる入力として使える発見
+- 「ゼロ点がズレる」「戻り止めがない」は実機を触らないと分からない性質
+- 単位はラジアン。度で扱うなら変換が必要
+
+## マイク録音（成功・2026-08-30）
+
+### カテゴリ
+
+SDK・API / 実機・ハードウェア / 記事化の観点
+
+### 入出力でサンプリングレートが違う
+
+実機から取得した仕様。
+
+| | レート | チャンネル |
+| --- | --- | --- |
+| 入力（マイク） | **16000 Hz** | **2 ch** |
+| 出力（内蔵WAV） | 44100 Hz | 2 ch |
+
+```python
+rate = mini.media.get_input_audio_samplerate()      # 16000
+channels = mini.media.get_input_channels()          # 2
+```
+
+マイクはReSpeakerのアレイなのでステレオ扱い。**入力16 kHz / 出力44.1 kHz**と非対称
+なので、録った音をそのまま流す処理を書くときは注意が必要。
+
+### `get_audio_sample()` はポーリング前提
+
+`media.start_recording()` の後、`get_audio_sample()` を繰り返し呼んでチャンクを集める。
+**データが無いときは `None` を返す**ため、`None` を無視して回し続ける実装が必要。
+
+```python
+mini.media.start_recording()
+chunks = []
+while time.monotonic() - started < seconds:
+    sample = mini.media.get_audio_sample()
+    if sample is None:
+        time.sleep(0.01)
+        continue
+    chunks.append(np.asarray(sample, dtype=np.float32))
+mini.media.stop_recording()
+```
+
+5秒の録音での実測値。
+
+- 74チャンク / 151,552サンプル（`None` 受信は158回）
+- 151552 ÷ 2ch ÷ 16000 Hz = **4.74秒相当**（指定5.0秒に対して妥当）
+- 1チャンク ≒ 2048サンプル（1024フレーム × 2ch）
+
+### float32 から16bit PCMへの変換
+
+`get_audio_sample()` が返すのは float32（-1.0〜1.0）。WAVへ保存するには変換する。
+
+```python
+pcm = (np.clip(audio, -1.0, 1.0) * 32767.0).astype(np.int16)
+with wave.open(path, "wb") as wav:
+    wav.setnchannels(channels)
+    wav.setsampwidth(2)
+    wav.setframerate(rate)
+    wav.writeframes(pcm.tobytes())
+```
+
+保存したWAVを `media.play_sound()` で再生し、**自分の声として聞き取れることを確認した**。
+
+### 音量の指標を出すと切り分けが速い
+
+ピークとRMSを表示すると、「録れているのに聞こえない」のか「そもそも録れていない」のかが
+すぐ分かる。実測では声を入れたときピーク0.29〜0.62、RMS0.025〜0.068だった。
+ピークが0.001未満ならほぼ無音として警告を出すようにした。
+
+### 開始・終了の合図音は必須だった
+
+最初は表示だけで進めたが、ユーザーが「いつ始まったか分からない」状態になった。内蔵音源を
+合図に使うと解決した。**合図音が録音へ混ざらないよう、鳴り終わってから録音を開始する**
+（`play_sound()` は非ブロッキングなので待ち時間が必要）。
+
+内蔵音源の長さ（`reachy_mini/assets/`、すべて44100 Hz・2ch）。
+
+| ファイル | 長さ | 用途 |
+| --- | --- | --- |
+| `wake_up.wav` | 0.41秒 | 開始の合図に向く |
+| `count.wav` | 0.66秒 | 終了の合図に向く |
+| `dance1.wav` | 0.99秒 | |
+| `impatient1.wav` | 0.90秒 | |
+| `go_sleep.wav` | 3.60秒 | 長いので合図には不向き |
+| `confused1.wav` | 5.71秒 | |
+
+### 記事化の観点
+
+- 入力16 kHz / 出力44.1 kHzという非対称は、音声処理を書くときの落とし穴
+- `None` を返すポーリングAPIは、初見だと「録れていない」と誤解しやすい
+- 人間が関わるテストでは、画面表示だけでなく**音の合図**が要る。実際にこれで詰まった
+- ピーク・RMSを出すだけで切り分けが速くなる
 
 ## SDK 1.10.0への更新とPython要件
 
@@ -1444,6 +1689,158 @@ model="gpt-4o-transcribe",   # ← ここを別のモデル名に変える
 `language=ja` が効かなかった事実は、サーバがこのフィールド群を無視している可能性と、
 Parakeetが日本語コードを受け付けない可能性の両方と整合する。切り分けにはモデル名側の
 実験が必要。
+
+### 全体構成の理解（deployedモードの実像）
+
+会話アプリは**AIモデルを1つも持っていない**。ロボット上の依存はこれだけ。
+
+```toml
+dependencies = [
+    "huggingface-hub", "httpx", "python-dotenv",
+    "openai==2.28.0",            # HFバックエンドと話すため
+    "reachy_mini_dances_library", "reachy-mini", "mcp",
+]
+```
+
+実機で確認しても、`apps_venv`（254パッケージ）に `speech_to_speech`・torch・
+Whisper・Parakeet・Qwen 関連は**一つも入っていない**。
+
+```text
+ロボット (CM4)                        HF のサーバ（クラウド）
+┌────────────────────┐            ┌──────────────────────┐
+│ 会話アプリ            │            │ speech-to-speech      │
+│  = Realtimeクライアント│──WebSocket─▶│  VAD → STT → LLM → TTS│
+│  モデルは持たない      │◀───────────│                       │
+└────────────────────┘  音声/音声  └──────────────────────┘
+```
+
+つまり「s2sを使っている」は正しいが、**動いている場所はHFのクラウド**。ロボットは
+WebSocketで音声を送受信するだけ。だからCM4でも成立している。
+
+アプリから見れば接続先URLが変わるだけなので、話し相手は
+deployed / 自前s2s / 自作サーバのどれでも差し替えられる（`.env` の2行）。
+
+### 音声は常時クラウドへ送られている
+
+`input_audio_buffer.append` にゲートが無く（`huggingface_realtime.py:976-979`）、
+VADもサーバ側（`server_vad`）。つまり**アプリ起動中はマイク音声を送り続けている**。
+
+帯域の概算（16kHz モノラル PCM16、base64エンコード）:
+
+| 項目 | 値 |
+| --- | --- |
+| 生PCM | 32 kB/s = 256 kbps |
+| base64後 | 約 43 kB/s = 341 kbps |
+| 1時間あたり（送信のみ） | 約 154 MB |
+| 応答音声を含めた往復 | 概算 300 MB/時 |
+
+含意:
+
+- 無音・生活音・家族の会話もすべてHFへ送られる。プライバシー観点の指摘として記事価値が高い
+- テザリングや従量制回線では通信量が問題になる
+- HF側は数千台ぶんの常時音声を受けて、STT・LLM・TTSを**無料で**回している。
+  ハードを売って推論コストを負担するモデル
+- 遅延1.4秒が出ているのは、4段がHF側に同居しており、ネットワークを渡るのが
+  音声の往復1回だけだから。段ごとに別のクラウドを呼ぶ構成より有利
+
+### 記事化の観点
+
+「$299のロボットが、実は喋っていない間もクラウドに音声を送り続けている」は、
+仕組みの説明として分かりやすく、かつ誰も書いていない。帯域の実数と
+`input_audio_buffer.append` にゲートが無いというコード根拠を添えられる。
+
+### 実装方針の検討：4つの選択肢と結論
+
+日本語対応のために「deployedバックエンドを離れる」と決めたあと、どう作るかを比較した。
+
+#### 選択肢
+
+| 案 | 内容 | 判断 |
+| --- | --- | --- |
+| 1 | `speech-to-speech` をそのままインストールして使う | 依存が重い。**却下** |
+| 2 | `speech-to-speech` をforkして削る | 読む量が多い。**却下** |
+| 3 | Realtimeサーバを自作（アプリは無改造） | 不要なプロトコル実装が発生。**次善** |
+| 4 | **会話アプリをforkし、バックエンドを直接API呼び出しに置き換える** | **採用** |
+
+#### 案1・2を却下した理由
+
+`speech-to-speech` の必須依存（非Darwin）に次が含まれる。
+
+- `torch` aarch64 wheel **427MB**（+ transformers、librosa 等）
+- `faster-qwen3-tts[ggml]` → `qwentts-cpp-python` の配布wheelは
+  **`cu128`（CUDA 12.8）かつ `manylinux_2_39`**。CM4にCUDAは無く、glibcも古い可能性が高い。
+  **使わないTTSの依存でインストールが失敗しうる**
+
+VADが `torch` を使う実装（`VAD/vad_iterator.py:3` で `import torch`）なので、torchは
+「使わない依存」ではなく必須。本体の空きは4.3GBで入る見込みではあるが、
+**使いたいのはVAD1つだけなのに代償が大きい。**
+
+fork案（2）は、プロトコル層が `api/openai_realtime` で**5,951行**。WebRTC、複数
+パイプライン、ライブ文字起こし、バックエンド抽象など不要な機能が理由で膨れている。
+削るつもりで読むと pipeline 抽象まで芋づるになり、上流（0.2.12、活発）との乖離も負債。
+
+#### 案3より案4が良い理由
+
+決め手は、**会話アプリに差し替え口が用意されていた**こと。
+
+```python
+# main.py:167-184
+def build_handler(startup_voice=None) -> ConversationHandler:
+    from ...huggingface_realtime import HuggingFaceRealtimeHandler
+    return HuggingFaceRealtimeHandler(...)
+handler = build_handler(startup_settings.voice)
+... handler_factory=build_handler
+```
+
+- 抽象基底クラス `conversation_handler.py` は**159行**
+- 実装が必要な抽象メソッドは**9個**（`_is_connected` / `start_up` / `shutdown` /
+  `receive(frame)` / `say(text)` / `apply_personality` / `get_available_voices` /
+  `get_current_voice` / `change_voice`）
+- `emit()` と文字起こし通知は基底クラスが実装済み
+- アプリ全体9,567行のうちバックエンドは `huggingface_realtime.py` の1,069行＝11%だけ。
+  かつて `BACKEND_PROVIDER` で複数バックエンドを選べた設計の名残
+
+| | 案3：Realtimeサーバ自作 | 案4：appをfork |
+| --- | --- | --- |
+| 実装対象 | プロトコル13イベントの組み立て・順序・割り込み畳み | 抽象メソッド9個 |
+| 仕様の参照先 | OpenAI Realtimeの挙動（s2sを読む） | `conversation_handler.py` 159行 |
+| プロセス数 | 2 | **1** |
+| ネットワークホップ | localhost WSが1つ増える | **無し** |
+| ツール実行 | WS越しに `call_id` を往復 | **同一プロセス内の関数呼び出し** |
+| 割り込み | プロトコルで畳む | 既存の再生キューflushを使える |
+| アプリ変更 | ゼロ | 新規1ファイル＋`build_handler` 数行 |
+| 上流追従 | 不要 | 必要（ただし差分は小さい） |
+
+案3は「両端が自分のものなのにJSONイベントでやり取りする」無駄が本質的にある。
+特にツール呼び出しを同一マシン内でシリアライズするのは筋が悪い。
+
+#### 案4のリスクと軽減
+
+- **fork維持**：差分が新規1ファイル＋数行なので取り込みは容易。UI・プロファイル・
+  17ツール・moves・記憶・MCPは触らないので競合しない
+- **配布**：ロボットへは rsync + `/venvs/apps_venv/bin/pip install` で直接入れる。
+  HF Spaceへのpublishは後回しでよい
+- **退路**：環境変数で `deployed` / `direct` を切り替えられるようにし、既存動作を残す
+
+#### 採用構成
+
+| 段 | 実装 | 検証状況 |
+| --- | --- | --- |
+| VAD | ハンドラ内（`receive()`）。`webrtcvad` か silero-onnx | 未 |
+| STT | OpenAI `gpt-transcribe`（$0.0045/分） | 未 |
+| LLM | HF router `Qwen/Qwen3-4B-Instruct-2507`（入力$0.01/1M） | **✅ 日本語・tool calling・streamを実機から確認** |
+| TTS | OpenAI `gpt-4o-mini-tts` か ローカルKokoro（82M） | 未。HFは音声エンドポイント404 |
+
+torchもqwentts依存も不要になり、CM4でも成立する見込み。
+
+#### fork済み
+
+```text
+origin   https://github.com/optimisuke/reachy_mini_conversation_app.git
+upstream https://github.com/pollen-robotics/reachy_mini_conversation_app.git
+clone先  /Users/ito/Private/reachy_mini_conversation_app
+基点     531baaa (2026-08-19, v1.0.1)
+```
 
 ### 未解決・要検証
 
