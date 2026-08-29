@@ -5,3 +5,6 @@ __pycache__/
 
 # カメラで撮影した画像（人物が写るためコミットしない）
 camera_snapshot*.jpg
+
+# 録音した音声（声が入るためコミットしない）
+mic_recording*.wav

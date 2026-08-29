@@ -869,6 +869,91 @@ with wave.open(path, "wb") as wav:
 - 人間が関わるテストでは、画面表示だけでなく**音の合図**が要る。実際にこれで詰まった
 - ピーク・RMSを出すだけで切り分けが速くなる
 
+## 公式ドキュメントから分かったこと（2026-08-30 調査）
+
+### カテゴリ
+
+SDK・API / 接続・デプロイ / 記事化の観点
+
+### クライアントの経路は3つあり、文書化の度合いが違う
+
+| 経路 | 対象 | 文書化 |
+| --- | --- | --- |
+| Python SDK | Python | 公式ドキュメントあり |
+| JavaScript SDK | ブラウザ | 公式ドキュメントあり。**WebRTC**接続。公式は「新しいアプリはこれが推奨」 |
+| REST API `:8000` | 任意 | OpenAPIは取得できるが**モーション系エンドポイントは無い** |
+| `ws://:8000/ws/sdk` | 任意 | **文書化なし**。SDKのソースから判明した内部API |
+
+公式ドキュメント: https://huggingface.co/docs/reachy_mini/en/SDK/javascript-sdk
+
+JS SDKはHuggingFace OAuth → シグナリングサーバー（HF Space）→ WebRTC P2Pという流れ。
+接続確立後はシグナリングサーバーが経路から外れる。
+
+**マイコン（ESP32など）から操作したい場合、WebRTCは重すぎる**（DTLS/SRTP、ICE、SDP、
+OAuth）。内部APIの `/ws/sdk` を直接叩く手もあるが無保証。本体側にPython SDKを使った
+HTTPプロキシを置くのが安定（`docs/ideas.md` 参照）。
+
+### アップロード音声は 16 kHz モノ 16bit PCM WAV が必須
+
+公式ドキュメントの明記事項。**daemonはトランスコードしない。**
+
+> Audio must be canonical 16 kHz mono 16-bit PCM WAV. Apps are responsible for
+> normalizing before upload — the daemon does not transcode. Format mismatch is a
+> frequent cause of "audio is silent / wrong speed" on inherited datasets.
+
+「無音になる／速度がおかしい」の頻出原因としてフォーマット不一致が挙げられている。
+以前ハマった音声再生の問題と関係する可能性がある（要検証）。ただし本プロジェクトの実測
+では、**Macの `say` が生成した mono / 16000 Hz のWAVは本体上で正常に再生できた**ため、
+`play_sound()` によるファイル再生と、データチャネル経由のアップロード再生では要求が
+異なると思われる（推測）。マイク入力も16 kHzなので、**16 kHzモノが本体の標準**と考えて
+おくとよい。
+
+### 頭は world frame。`body_yaw` だけ送ると頭が逆回転して見える
+
+胴体回転時に首が逆方向へ補正されるように見えた現象（本メモ「胴体回転」）の**公式説明が
+見つかった**。
+
+> The `head` matrix is in the world frame. Sending `setTarget({ body_yaw })` alone
+> rotates the body but not the head's commanded world yaw — the head's gaze stays
+> fixed in world frame, so visually it appears to counter-rotate as the body turns.
+
+つまり「首が補正されている」のではなく、**頭の目標がワールド座標で固定されているため、
+胴体が回っても視線が動かない**というのが正しい理解。戦車のように頭を胴体へ追従させたい
+場合は、頭のRPYのyawへ胴体のyaw差分を足して、`head` と `body_yaw` を**同じ呼び出しで**
+送る必要がある。
+
+またその基準値には、テレメトリの `state.head` ではなく**自分が最後に指令した値**を使う
+こと。テレメトリはWebRTCのRTT分遅れるため、差分を積み上げると入力が速いときに破綻する。
+
+### モーターモードは3つある
+
+`setMotorMode(mode)` の選択肢が明記されていた。
+
+- `enabled`: 位置制御
+- `disabled`: 脱力（limp）
+- `gravity_compensation`: 手で動かせる（float by hand）
+
+`docs/tasks.md` B-3（重力補償）の裏付けになる。Python SDKの
+`enable_gravity_compensation()` と対応する。
+
+### その他
+
+- `subscribePose()` で約30 Hzのポーズ配信を受け取れる（既定は500 msポーリング）
+- `head_joint_positions` は7要素で、`[0]` が胴体yaw、`[1..6]` がStewartプラットフォームの
+  首6モーター。`antennas_joint_positions` は `[right, left]`（ラジアン）
+- JS SDK側の `playMove` では音声とモーションのズレ補正 `audioLeadMs` の既定が **-100 ms**
+  （モーター立ち上がりとGStreamerウォームアップの実測値）
+- 長いモーションはブラウザから毎フレーム送るのではなく、**daemon側の時計で再生**させる
+  設計が推奨されている
+
+### 記事化の観点
+
+- 「Pythonでできることを他の言語からやる」ときの経路選択（公式JS SDK / 内部WS / 自前プロキシ）
+- 16 kHzモノという制約が入出力に一貫している点
+- ワールド座標系の頭姿勢は、実機を触ると「首が勝手に補正される」と誤解しやすい。
+  公式の説明を読むと設計意図が分かる好例
+- 実測で気づいた現象を、後から公式ドキュメントで裏付けられた流れ
+
 ## SDK 1.10.0への更新とPython要件
 
 ### カテゴリ
