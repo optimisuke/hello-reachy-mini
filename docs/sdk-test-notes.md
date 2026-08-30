@@ -1085,6 +1085,72 @@ Appとスクリプトの排他（`robot-app-lock-status`）とは別の話らし
 - `async_` 接頭辞のメソッドを同期コードから呼んで動かない、という初学者が必ず踏む罠
 - 排他ロックの範囲設計（読み取りは外す）は実際にタイムアウトして気づいた
 
+## daemonのbackendが停止しているとREST操作が効かない（2026-08-30）
+
+### カテゴリ
+
+接続・デプロイ / SDK・API / 記事化の観点
+
+### 現象
+
+REST APIでモーションを送ったら **HTTP 503 `Backend not running`** が返った。
+その直前までは同じリクエストで正常に動いていた。
+
+### 原因
+
+ユーザーがReachy Mini Control側でdaemonを停止していた。アイドルによる自動停止ではない。
+`GET /api/daemon/status` の `state` が `stopped` になっていた。
+
+### 層の区別が必要
+
+「Appを止めれば操作できる」と理解していたが、実際には層が3つある。
+
+| 層 | 操作に必要か | 確認方法 |
+| --- | --- | --- |
+| Reachy Mini の App | **不要**（`null` のままで動く） | `GET /api/apps/current-app-status` |
+| daemon プロセス | 必要（常時稼働） | `GET /api/daemon/status` |
+| daemon の **backend** | **必要**（`state: running`） | 同上 |
+| モーターのトルク | **必要**（`enabled`） | `GET /api/motors/status` |
+
+### 復旧手順
+
+```bash
+curl -X POST "http://reachy-mini.local:8000/api/daemon/start?wake_up=false"
+# wake_up クエリパラメータは必須。無いと 422
+# wake_up=true なら起床モーションと音が入る
+curl -X POST http://reachy-mini.local:8000/api/motors/set_mode/enabled
+```
+
+起動後の `backend_status` で制御ループの実測値も見える。
+
+```json
+{"ready":true,"motor_control_mode":"enabled",
+ "control_loop_stats":{"mean_control_loop_frequency":49.6,
+   "max_control_loop_interval":0.0216,"nb_error":0,
+   "motor_controller":"ControlLoopStats(period=~20.00ms, read_dt=~1.92 ms, write_dt=~0.39 ms)"}}
+```
+
+### 見つけにくい失敗が2つある
+
+1. **backend が停止していると 503 を返す。** これはエラーになるので気づける
+2. **backend は動いていてもモーターが `disabled` だと、`goto` は uuid を返すのに
+   ロボットが動かない。** 成功したように見えるため気づきにくい。実際に、backend起動直後は
+   `motor_control_mode: disabled` で、そのまま `goto` を送ると uuid（200）が返るのに
+   無反応だった。アンテナの実測値が -174.7° / 167.9° という脱力状態のままだった
+
+### 学び
+
+- **HTTP 200 とロボットが動くことは別。** 非ブロッキングAPIでは「受け付けた」しか
+  意味しない。実際に動いたかは関節角を読んで確認する
+- 状態確認は冪等なので、クライアント側で「確認して必要なら起動」を毎回通すのが安全
+- 本体を再起動するとモーターのトルクは `disabled` から始まる（既存メモにも記録あり）
+
+### 記事化の観点
+
+- 「App を止めれば動く」ではなく、daemon の backend とモーターのトルクという層がある
+- 200が返るのに動かない、という切り分けの難しい失敗の実例
+- マイコンから操作するときに必要な初期化シーケンスとして記事に書ける
+
 ## SDK 1.10.0への更新とPython要件
 
 ### カテゴリ

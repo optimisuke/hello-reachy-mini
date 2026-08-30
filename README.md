@@ -132,6 +132,21 @@ curl -X POST http://reachy-mini.local:8000/api/volume/set -H 'Content-Type: appl
 - モーション再生は `uuid` を返す非ブロッキング方式。完了は `GET /api/move/running` で確認し、
   止めるときは `POST /api/move/stop` に uuid を渡す
 
+### 動かないときは daemon の backend とモーターを確認する
+
+`/api/move/...` が **HTTP 503 `Backend not running`** を返す場合、daemon の backend が
+停止しています（Reachy Mini Control から停止したときに起こります）。
+
+```bash
+curl http://reachy-mini.local:8000/api/daemon/status                    # state を確認
+curl -X POST "http://reachy-mini.local:8000/api/daemon/start?wake_up=false"
+curl -X POST http://reachy-mini.local:8000/api/motors/set_mode/enabled  # トルクON
+```
+
+`wake_up` クエリパラメータは必須です。また **backend が動いていてもモーターが
+`disabled` だと、`goto` は uuid を返すのにロボットは動きません**（成功したように見えて
+しまうので注意）。
+
 ### `reachy_proxy.py`（プロキシ実装・通常は不要）
 
 `reachy_proxy.py` は本体上で動かす FastAPI のプロキシで、すべて GET の単純な REST を
@@ -188,5 +203,6 @@ FastAPI と uvicorn は本体の `apps_venv` に最初から入っているた�
 - [検証タスク一覧](docs/tasks.md)
 - [アイデアメモ](docs/ideas.md)
 - [daemon REST API チートシート](docs/daemon-rest-cheatsheet.md)
+- [M5Stack StopWatch 連携の引き継ぎプロンプト](docs/handoff-m5stack-controller.md)
 
 公式資料: [Reachy Mini SDK Quickstart](https://huggingface.co/docs/reachy_mini/en/SDK/quickstart)
