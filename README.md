@@ -1,6 +1,30 @@
 # hello-reachy-mini
 
-Reachy Mini に接続して、頭とアンテナで挨拶する最初の Python プロジェクトです。
+Reachy Mini（Wireless版）を Python と REST API から動かす検証プロジェクトです。挨拶
+モーションから始めて、カメラ・音声・マイク・顔追跡・ダンス・アンテナ入力まで実機で
+確認しています。
+
+Mac からネットワーク越しに動かすスクリプトと、本体内蔵の Raspberry Pi（CM4）上で直接
+動かす `*_on_robot.py` を対にして置いてあります。マイコンから操作する場合は
+[HTTP REST で操作する](#http-rest-で操作する)を参照してください。
+
+## スクリプト一覧
+
+| 機能 | Mac から | 本体上で | 内容 |
+| --- | --- | --- | --- |
+| 挨拶 | `hello.py` | `hello_on_robot.py` | 頭とアンテナで挨拶。`--voice` で音声付き |
+| 胴体回転 | `body_rotation.py` | `body_rotation_on_robot.py` | 胴体を左右 20° 回転 |
+| 音声再生 | `audio_playback.py` | `audio_playback_on_robot.py` | WAV をスピーカーで再生 |
+| カメラ | `camera_snapshot.py` | `camera_snapshot_on_robot.py` | 静止画を JPEG で保存 |
+| 顔追跡 | `face_tracking.py` | `face_tracking_on_robot.py` | daemon 側の顔追跡で頭を追従 |
+| モーション再生 | — | `recorded_moves_on_robot.py` | ダンス19種・感情85種を再生 |
+| アンテナ入力 | — | `antenna_input_on_robot.py` | アンテナを手で動かして角度を読む |
+| マイク録音 | — | `mic_recording_on_robot.py` | 録音して WAV 保存・再生 |
+| REST プロキシ | — | `reachy_proxy.py` | HTTP で操作する層（通常は不要） |
+
+引数を持つスクリプト（`recorded_moves_on_robot.py`、`camera_snapshot_on_robot.py`、
+`face_tracking_on_robot.py`、`antenna_input_on_robot.py`、`mic_recording_on_robot.py`、
+`audio_playback_on_robot.py`、`reachy_proxy.py`、`hello.py`）は `--help` で確認できます。
 
 ## 必要なもの
 
@@ -47,38 +71,57 @@ uv run --frozen python hello.py --voice
 ## トラブルシューティング
 
 - 接続できない: Reachy Mini Control でロボットがオンラインか確認する
-- ロボットが動かない: `Applications` で実行中の App を停止する
+- ロボットが動かない: 実行中の App を停止し、移動前に `enable_motors()` を呼ぶ。
+  接続に成功していてもモーターが無効だと動かない
+- 顔追跡で `detected` が常に `False`: `media_backend` を既定（`"default"`）にする。
+  daemon 側の顔追跡は共有カメラフィードに接続する実装なので、`"no_media"` では
+  フレームが 1 枚も届かず、頭も動かない
+- カメラの画角がおかしい: 待機姿勢では頭が下がっているため、撮影前に
+  `goto_target(head=create_head_pose(pitch=...))` で正面へ上げる
+- 音が鳴らない: モーションのみなら `"no_media"` でよいが、音やカメラを使うなら
+  既定のままにする。`play_sound()` は非ブロッキングなので、再生中は接続を維持する
+- REST で `Backend not running`（503）: 下記
+  [動かないときは daemon の backend とモーターを確認する](#動かないときは-daemon-の-backend-とモーターを確認する)
 - Lite 版: Reachy Mini Control を開いたままにして daemon を動作させる
 - Wireless 版: Mac と Reachy Mini を同じネットワークへ接続する
-- 音声アップロードが HTTP 400 になる: 最新の `hello.py` が WAV を生成しているか確認する
+- `No Reachy Mini Audio USB device found` は Wireless 版ではエラーではない。
+  続いて `GstWebRTCClient initialized` と出れば WebRTC 経路へ正常に切り替わっている
+- 本体上での実行で onnxruntime の GPU 警告（`/sys/class/drm/card0`）が出るのは無害。
+  CM4 に GPU デバイスノードが無いため
 
 ## Wireless 本体上で実行する
 
-`hello_on_robot.py` は、Wireless 版に内蔵された Raspberry Pi（CM4）上で直接動かす
-スクリプトです。Mac からネットワーク越しに操作せず、本体内の daemon へ
-`localhost` で接続します。
+`*_on_robot.py` は、Wireless 版に内蔵された Raspberry Pi（CM4）上で直接動かす
+スクリプトです。Mac からネットワーク越しに操作せず、本体内の daemon へ `localhost` で
+接続します（`connection_mode="localhost_only"`）。ネットワークを経由しないため速く、
+カメラ接続は Mac 経由の約5秒に対して 0.4 秒でした。
 
-まずMacからスクリプトを転送します。
+### 最初に SSH 鍵を登録する
 
-```bash
-scp hello_on_robot.py pollen@reachy-mini.local:~/hello_on_robot.py
-```
-
-続いてReachy MiniへSSH接続します。
+初期状態はパスワード認証のみなので、一度だけ鍵を登録しておくと以降のテストが楽になります
+（デフォルトのユーザー名は `pollen`、パスワードは `root`）。
 
 ```bash
-ssh pollen@reachy-mini.local
+ssh-copy-id -i ~/.ssh/id_ed25519.pub pollen@reachy-mini.local
 ```
 
-Reachy Mini内のアプリ用Python環境を有効化し、スクリプトを実行します。
+### 転送して実行する
 
 ```bash
-source /venvs/apps_venv/bin/activate
-python ~/hello_on_robot.py
+scp hello_on_robot.py pollen@reachy-mini.local:~/
+ssh pollen@reachy-mini.local 'source /venvs/apps_venv/bin/activate && python -u ~/hello_on_robot.py'
 ```
 
-このスクリプトでは `connection_mode="localhost_only"` を指定しているため、必ず
-Reachy Mini本体内のdaemonへ接続します。実行前に起動中のAppを停止してください。
+`python` に `-u` を付けると、SSH 越しでも `print` が即座に流れてくるので進行が追えます。
+本体の `apps_venv` は Python 3.12 系です（システムの `python3` は 3.13 系なので、
+バージョンを確認するときは venv を有効化してから見てください）。
+
+実行前に起動中の App を停止してください。停止は REST からもできます。
+
+```bash
+curl http://reachy-mini.local:8000/api/apps/current-app-status   # 実行中のApp（無ければ null）
+curl -X POST http://reachy-mini.local:8000/api/apps/stop-current-app
+```
 
 ## HTTP REST で操作する
 
@@ -198,11 +241,27 @@ FastAPI と uvicorn は本体の `apps_venv` に最初から入っているた�
 
 ## ドキュメント
 
+検証と設計のメモ
+
+- [SDK 実機テストメモ](docs/sdk-test-notes.md) — 現象・原因・解決・学びの形で記録した本体
+- [検証タスク一覧](docs/tasks.md) — 済みと未着手の整理、優先度
+- [アイデアメモ](docs/ideas.md) — マイコン連携、日本語会話、絵の講評
+
+API リファレンス
+
+- [daemon REST API チートシート](docs/daemon-rest-cheatsheet.md) — よく使う操作を curl の例で
+- [`docs/daemon-openapi.json`](docs/daemon-openapi.json) / [`.yaml`](docs/daemon-openapi.yaml) — 実機から取得した OpenAPI 定義
 - [Reachy Mini Application 調査メモ](docs/reachy-mini-applications.md)
-- [SDK 実機テストメモ](docs/sdk-test-notes.md)
-- [検証タスク一覧](docs/tasks.md)
-- [アイデアメモ](docs/ideas.md)
-- [daemon REST API チートシート](docs/daemon-rest-cheatsheet.md)
-- [M5Stack StopWatch 連携の引き継ぎプロンプト](docs/handoff-m5stack-controller.md)
+
+会話アプリの日本語対応
+
+- [バックエンド調査と実装方針](docs/handoff-direct-api-handler.md)
+- [モデル選定の実測記録](docs/model-benchmarks.md)
+- [日本語技術記事サーベイ](docs/ja-articles-survey.md)
+
+別リポジトリ
+
+- `reachy-m5-remote` — M5Stack StopWatch から操作するファームウェア。
+  引き継ぎ資料は [`docs/handoff-m5stack-controller.md`](docs/handoff-m5stack-controller.md)
 
 公式資料: [Reachy Mini SDK Quickstart](https://huggingface.co/docs/reachy_mini/en/SDK/quickstart)

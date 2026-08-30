@@ -2344,3 +2344,15 @@ CIでポート/タイミング由来のflakyになりやすい）。振る舞い
 2. `role=user content=...` に**日本語**が出るか（実APIのSTT）
 3. ターン遅延（`Turn latency: assistant text ... ms`）とCM4のCPU負荷
 
+### モデル選定は別ファイルに切り出した
+
+STT / LLM / TTS を実APIで測って選んだ記録（TTFT、トークン消費、プロンプトキャッシュ、
+1ターンのコスト内訳、`ja` vs `jp`）は **`docs/model-benchmarks.md`** にある。要点だけ:
+
+- 採用は STT=`gpt-transcribe` / LLM=`gpt-5.4-mini` / TTS=`gpt-4o-mini-tts`
+- **1ターン約 $0.0016（1ドルで約610ターン）。うち音声が64%で、LLMはコストの主役ではない**
+- 入力2,600トークンのうち**2,176がキャッシュヒット**しており、LLMコストが約1/4になっている
+- `gpt-5.4-nano` は mini より安いが**遅い**。安い方が速いとは限らない
+- `gpt-5.6-luna` は「function tools と reasoning_effort は併用不可」で400
+- `language='jp'` は400。ISO-639-1 なので `ja`
+
