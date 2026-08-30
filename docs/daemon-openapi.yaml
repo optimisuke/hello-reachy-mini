@@ -1,0 +1,3227 @@
+components:
+  schemas:
+    AppInfo:
+      description: Metadata about an app.
+      properties:
+        description:
+          default: ''
+          title: Description
+          type: string
+        extra:
+          additionalProperties: true
+          title: Extra
+          type: object
+        name:
+          title: Name
+          type: string
+        source_kind:
+          $ref: '#/components/schemas/SourceKind'
+        url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url
+      required:
+      - name
+      - source_kind
+      title: AppInfo
+      type: object
+    AppState:
+      description: Status of a running app.
+      enum:
+      - starting
+      - running
+      - done
+      - stopping
+      - error
+      title: AppState
+      type: string
+    AppStatus:
+      description: Status of an app.
+      properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+        info:
+          $ref: '#/components/schemas/AppInfo'
+        state:
+          $ref: '#/components/schemas/AppState'
+      required:
+      - info
+      - state
+      title: AppStatus
+      type: object
+    AppUpdateStatus:
+      description: Status of an app update check.
+      properties:
+        app_name:
+          title: App Name
+          type: string
+        installed_sha:
+          title: Installed Sha
+          type: string
+        last_modified:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last Modified
+        latest_sha:
+          title: Latest Sha
+          type: string
+        space_id:
+          title: Space Id
+          type: string
+        update_available:
+          title: Update Available
+          type: boolean
+      required:
+      - app_name
+      - space_id
+      - installed_sha
+      - latest_sha
+      - update_available
+      title: AppUpdateStatus
+      type: object
+    AppUpdatesResponse:
+      description: Response for list of app updates.
+      properties:
+        apps_checked:
+          title: Apps Checked
+          type: integer
+        apps_skipped:
+          title: Apps Skipped
+          type: integer
+        apps_with_updates:
+          items:
+            $ref: '#/components/schemas/AppUpdateStatus'
+          title: Apps With Updates
+          type: array
+      required:
+      - apps_with_updates
+      - apps_checked
+      - apps_skipped
+      title: AppUpdatesResponse
+      type: object
+    ApplyAudioConfigRequest:
+      description: Request body for ``POST /audio/config/apply``.
+      properties:
+        config:
+          items:
+            $ref: '#/components/schemas/AudioParamPair'
+          title: Config
+          type: array
+        verify:
+          default: true
+          title: Verify
+          type: boolean
+      required:
+      - config
+      title: ApplyAudioConfigRequest
+      type: object
+    ApplyAudioConfigResponse:
+      description: Response body for ``POST /audio/config/apply``.
+      properties:
+        applied:
+          title: Applied
+          type: boolean
+      required:
+      - applied
+      title: ApplyAudioConfigResponse
+      type: object
+    AudioParamPair:
+      description: One ``(parameter_name, values)`` pair in an audio config payload.
+      properties:
+        name:
+          title: Name
+          type: string
+        values:
+          items:
+            type: number
+          title: Values
+          type: array
+      required:
+      - name
+      - values
+      title: AudioParamPair
+      type: object
+    Body_upload_sound_api_media_sounds_upload_post:
+      properties:
+        file:
+          contentMediaType: application/octet-stream
+          title: File
+          type: string
+      required:
+      - file
+      title: Body_upload_sound_api_media_sounds_upload_post
+      type: object
+    CameraSpecsResponse:
+      description: Full camera specifications as detected by the daemon.
+      properties:
+        D:
+          items:
+            type: number
+          title: D
+          type: array
+        K:
+          items:
+            items:
+              type: number
+            type: array
+          title: K
+          type: array
+        available_resolutions:
+          items:
+            $ref: '#/components/schemas/ResolutionInfo'
+          title: Available Resolutions
+          type: array
+        default_resolution:
+          $ref: '#/components/schemas/ResolutionInfo'
+        name:
+          title: Name
+          type: string
+      required:
+      - name
+      - available_resolutions
+      - default_resolution
+      - K
+      - D
+      title: CameraSpecsResponse
+      type: object
+    DaemonState:
+      description: Enum representing the state of the Reachy Mini daemon.
+      enum:
+      - not_initialized
+      - starting
+      - running
+      - stopping
+      - stopped
+      - error
+      title: DaemonState
+      type: string
+    DaemonStatus:
+      description: Status of the Reachy Mini daemon.
+      properties:
+        backend_status:
+          anyOf:
+          - $ref: '#/components/schemas/RobotBackendStatus'
+          - $ref: '#/components/schemas/MujocoBackendStatus'
+          - $ref: '#/components/schemas/MockupSimBackendStatus'
+          - type: 'null'
+          title: Backend Status
+        camera_specs_name:
+          default: ''
+          title: Camera Specs Name
+          type: string
+        desktop_app_daemon:
+          title: Desktop App Daemon
+          type: boolean
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+        face_target:
+          $ref: '#/components/schemas/FaceTarget'
+        hardware_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hardware Id
+        media_released:
+          default: false
+          title: Media Released
+          type: boolean
+        mockup_sim_enabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Mockup Sim Enabled
+        no_media:
+          default: false
+          title: No Media
+          type: boolean
+        robot_name:
+          title: Robot Name
+          type: string
+        simulation_enabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Simulation Enabled
+        state:
+          $ref: '#/components/schemas/DaemonState'
+        type:
+          const: daemon_status
+          default: daemon_status
+          title: Type
+          type: string
+        version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Version
+        wireless_version:
+          title: Wireless Version
+          type: boolean
+        wlan_ip:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Wlan Ip
+      required:
+      - robot_name
+      - state
+      - wireless_version
+      - desktop_app_daemon
+      - simulation_enabled
+      - mockup_sim_enabled
+      - backend_status
+      title: DaemonStatus
+      type: object
+    DoaSnapshot:
+      description: 'Sound Direction of Arrival reading (ReSpeaker mic array).
+
+
+        ``angle`` is in radians: 0 = left, π/2 = front, π = right.'
+      properties:
+        angle:
+          title: Angle
+          type: number
+        speech_detected:
+          title: Speech Detected
+          type: boolean
+      required:
+      - angle
+      - speech_detected
+      title: DoaSnapshot
+      type: object
+    EnableTrackingRequest:
+      description: Request body for enabling daemon-side head tracking.
+      properties:
+        weight:
+          default: 1.0
+          maximum: 1.0
+          minimum: 0.0
+          title: Weight
+          type: number
+      title: EnableTrackingRequest
+      type: object
+    FaceTarget:
+      description: Latest daemon-side face target used for head tracking.
+      properties:
+        detected:
+          default: false
+          title: Detected
+          type: boolean
+        roll:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Roll
+        ts:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Ts
+        x:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: X
+        y:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Y
+      title: FaceTarget
+      type: object
+    FullBodyTarget:
+      description: Represent the full body including the head pose and the joints for antennas.
+      examples:
+      - target_antennas:
+        - 0.0
+        - 0.0
+        target_body_yaw: 0.0
+        target_head_pose:
+          pitch: 0.0
+          roll: 0.0
+          x: 0.0
+          y: 0.0
+          yaw: 0.0
+          z: 0.0
+      properties:
+        target_antennas:
+          anyOf:
+          - maxItems: 2
+            minItems: 2
+            prefixItems:
+            - type: number
+            - type: number
+            type: array
+          - type: 'null'
+          title: Target Antennas
+        target_body_yaw:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Target Body Yaw
+        target_head_pose:
+          anyOf:
+          - $ref: '#/components/schemas/XYZRPYPose'
+          - $ref: '#/components/schemas/Matrix4x4Pose'
+          - type: 'null'
+          title: Target Head Pose
+        timestamp:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Timestamp
+      title: FullBodyTarget
+      type: object
+    FullState:
+      description: Represent the full state of the robot including all joint positions and poses.
+      properties:
+        antennas_position:
+          anyOf:
+          - items:
+              type: number
+            type: array
+          - type: 'null'
+          title: Antennas Position
+        body_yaw:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Body Yaw
+        control_mode:
+          anyOf:
+          - $ref: '#/components/schemas/MotorControlMode'
+          - type: 'null'
+        doa:
+          anyOf:
+          - $ref: '#/components/schemas/DoaSnapshot'
+          - type: 'null'
+        head_joints:
+          anyOf:
+          - items:
+              type: number
+            type: array
+          - type: 'null'
+          title: Head Joints
+        head_pose:
+          anyOf:
+          - $ref: '#/components/schemas/XYZRPYPose'
+          - $ref: '#/components/schemas/Matrix4x4Pose'
+          - type: 'null'
+          title: Head Pose
+        passive_joints:
+          anyOf:
+          - items:
+              type: number
+            type: array
+          - type: 'null'
+          title: Passive Joints
+        timestamp:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Timestamp
+      title: FullState
+      type: object
+    GotoModelRequest:
+      description: Request model for the goto endpoint.
+      examples:
+      - antennas:
+        - 0.0
+        - 0.0
+        body_yaw: 0.0
+        duration: 2.0
+        head_pose:
+          pitch: 0.0
+          roll: 0.0
+          x: 0.0
+          y: 0.0
+          yaw: 0.0
+          z: 0.0
+        interpolation: minjerk
+      - antennas:
+        - 0.0
+        - 0.0
+        duration: 1.0
+        interpolation: linear
+      properties:
+        antennas:
+          anyOf:
+          - maxItems: 2
+            minItems: 2
+            prefixItems:
+            - type: number
+            - type: number
+            type: array
+          - type: 'null'
+          title: Antennas
+        body_yaw:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Body Yaw
+        duration:
+          title: Duration
+          type: number
+        head_pose:
+          anyOf:
+          - $ref: '#/components/schemas/XYZRPYPose'
+          - $ref: '#/components/schemas/Matrix4x4Pose'
+          - type: 'null'
+          title: Head Pose
+        interpolation:
+          $ref: '#/components/schemas/InterpolationTechnique'
+          default: minjerk
+      required:
+      - duration
+      title: GotoModelRequest
+      type: object
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          title: Detail
+          type: array
+      title: HTTPValidationError
+      type: object
+    InterpolationTechnique:
+      description: Enumeration of interpolation techniques.
+      enum:
+      - linear
+      - minjerk
+      - ease_in_out
+      - cartoon
+      title: InterpolationTechnique
+      type: string
+    JobInfo:
+      description: Pydantic model for install job status.
+      properties:
+        command:
+          title: Command
+          type: string
+        logs:
+          items:
+            type: string
+          title: Logs
+          type: array
+        status:
+          $ref: '#/components/schemas/JobStatus'
+      required:
+      - command
+      - status
+      - logs
+      title: JobInfo
+      type: object
+    JobStatus:
+      description: Enum for job status.
+      enum:
+      - pending
+      - in_progress
+      - done
+      - failed
+      title: JobStatus
+      type: string
+    Matrix4x4Pose:
+      description: Represent a 3D pose by its 4x4 transformation matrix (translation is expressed in meters).
+      properties:
+        m:
+          maxItems: 16
+          minItems: 16
+          prefixItems:
+          - type: number
+          - type: number
+          - type: number
+          - type: number
+          - type: number
+          - type: number
+          - type: number
+          - type: number
+          - type: number
+          - type: number
+          - type: number
+          - type: number
+          - type: number
+          - type: number
+          - type: number
+          - type: number
+          title: M
+          type: array
+      required:
+      - m
+      title: Matrix4x4Pose
+      type: object
+    MockupSimBackendStatus:
+      description: Status of the MockupSim backend.
+      properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+        motor_control_mode:
+          $ref: '#/components/schemas/MotorControlMode'
+      required:
+      - motor_control_mode
+      title: MockupSimBackendStatus
+      type: object
+    MotorControlMode:
+      description: Enum for motor control modes.
+      enum:
+      - enabled
+      - disabled
+      - gravity_compensation
+      title: MotorControlMode
+      type: string
+    MotorStatus:
+      description: 'Represents the status of the motors.
+
+
+        Exposes
+
+        - mode: The current motor control mode (enabled, disabled, gravity_compensation).'
+      properties:
+        mode:
+          $ref: '#/components/schemas/MotorControlMode'
+      required:
+      - mode
+      title: MotorStatus
+      type: object
+    MoveUUID:
+      description: Model representing a unique identifier for a move task.
+      properties:
+        uuid:
+          format: uuid
+          title: Uuid
+          type: string
+      required:
+      - uuid
+      title: MoveUUID
+      type: object
+    MujocoBackendStatus:
+      description: Status of the Mujoco backend.
+      properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+        motor_control_mode:
+          $ref: '#/components/schemas/MotorControlMode'
+      required:
+      - motor_control_mode
+      title: MujocoBackendStatus
+      type: object
+    PlaySoundRequest:
+      description: Request body for the play_sound endpoint.
+      properties:
+        file:
+          title: File
+          type: string
+      required:
+      - file
+      title: PlaySoundRequest
+      type: object
+    PrivateSpaceInstallRequest:
+      description: Request model for installing a private HuggingFace space.
+      properties:
+        space_id:
+          title: Space Id
+          type: string
+      required:
+      - space_id
+      title: PrivateSpaceInstallRequest
+      type: object
+    ReadAudioParameterResponse:
+      description: Response body for ``GET /audio/config/parameter/{name}``.
+      properties:
+        name:
+          title: Name
+          type: string
+        values:
+          items:
+            anyOf:
+            - type: number
+            - type: integer
+          title: Values
+          type: array
+      required:
+      - name
+      - values
+      title: ReadAudioParameterResponse
+      type: object
+    ResolutionInfo:
+      description: A single camera resolution entry.
+      properties:
+        crop_factor:
+          title: Crop Factor
+          type: number
+        fps:
+          title: Fps
+          type: integer
+        height:
+          title: Height
+          type: integer
+        name:
+          title: Name
+          type: string
+        width:
+          title: Width
+          type: integer
+      required:
+      - name
+      - width
+      - height
+      - fps
+      - crop_factor
+      title: ResolutionInfo
+      type: object
+    RobotAppLockState:
+      description: Lock state enum. Values are stable strings suitable for serialization.
+      enum:
+      - free
+      - local_app
+      - remote_session
+      title: RobotAppLockState
+      type: string
+    RobotAppLockStatus:
+      description: 'Snapshot of the lock state, suitable for JSON serialization.
+
+
+        Returned by :meth:`RobotAppLock.status` and by the
+
+        ``GET /api/daemon/robot-app-lock-status`` endpoint.'
+      properties:
+        holder_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Holder Name
+        state:
+          $ref: '#/components/schemas/RobotAppLockState'
+      required:
+      - state
+      title: RobotAppLockStatus
+      type: object
+    RobotBackendStatus:
+      description: Status of the Robot Backend.
+      properties:
+        control_loop_stats:
+          additionalProperties: true
+          title: Control Loop Stats
+          type: object
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+        last_alive:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Last Alive
+        motor_control_mode:
+          $ref: '#/components/schemas/MotorControlMode'
+        ready:
+          title: Ready
+          type: boolean
+      required:
+      - ready
+      - motor_control_mode
+      - last_alive
+      - control_loop_stats
+      title: RobotBackendStatus
+      type: object
+    RobotNameRequest:
+      description: Body for setting the robot display name.
+      properties:
+        name:
+          maxLength: 64
+          minLength: 1
+          title: Name
+          type: string
+      required:
+      - name
+      title: RobotNameRequest
+      type: object
+    RobotNameResponse:
+      description: The robot's current display name (``null`` only if none is resolvable).
+      properties:
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+      title: RobotNameResponse
+      type: object
+    SealedConnect:
+      description: Sealed WiFi-connect payload (base64 fields, see scheme above).
+      properties:
+        ct:
+          title: Ct
+          type: string
+        epk:
+          title: Epk
+          type: string
+        kid:
+          title: Kid
+          type: string
+        nonce:
+          title: Nonce
+          type: string
+        ssid:
+          title: Ssid
+          type: string
+      required:
+      - ssid
+      - kid
+      - epk
+      - nonce
+      - ct
+      title: SealedConnect
+      type: object
+    SourceKind:
+      description: Kinds of app source.
+      enum:
+      - hf_space
+      - dashboard_selection
+      - local
+      - installed
+      title: SourceKind
+      type: string
+    StartupApp:
+      description: The app configured to auto-start on the robot's first wake-up.
+      properties:
+        startup_app:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Startup App
+      title: StartupApp
+      type: object
+    TestSoundResponse:
+      description: Response model for test sound operations.
+      properties:
+        message:
+          title: Message
+          type: string
+        status:
+          title: Status
+          type: string
+      required:
+      - status
+      - message
+      title: TestSoundResponse
+      type: object
+    TokenRequest:
+      description: Request model for saving a HuggingFace token.
+      properties:
+        token:
+          title: Token
+          type: string
+      required:
+      - token
+      title: TokenRequest
+      type: object
+    TokenResponse:
+      description: Response model for token operations.
+      properties:
+        message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Message
+        status:
+          title: Status
+          type: string
+        username:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Username
+      required:
+      - status
+      title: TokenResponse
+      type: object
+    ValidationError:
+      properties:
+        ctx:
+          title: Context
+          type: object
+        input:
+          title: Input
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          title: Location
+          type: array
+        msg:
+          title: Message
+          type: string
+        type:
+          title: Error Type
+          type: string
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+      type: object
+    VolumeRequest:
+      description: Request model for setting volume.
+      properties:
+        volume:
+          description: Volume level (0-100)
+          maximum: 100.0
+          minimum: 0.0
+          title: Volume
+          type: integer
+      required:
+      - volume
+      title: VolumeRequest
+      type: object
+    VolumeResponse:
+      description: Response model for volume operations.
+      properties:
+        device:
+          title: Device
+          type: string
+        platform:
+          title: Platform
+          type: string
+        volume:
+          title: Volume
+          type: integer
+      required:
+      - volume
+      - platform
+      - device
+      title: VolumeResponse
+      type: object
+    WifiMode:
+      description: WiFi possible modes.
+      enum:
+      - hotspot
+      - wlan
+      - disconnected
+      - busy
+      title: WifiMode
+      type: string
+    WifiStatus:
+      description: WiFi status model.
+      properties:
+        connected_network:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connected Network
+        known_networks:
+          items:
+            type: string
+          title: Known Networks
+          type: array
+        mode:
+          $ref: '#/components/schemas/WifiMode'
+      required:
+      - mode
+      - known_networks
+      - connected_network
+      title: WifiStatus
+      type: object
+    XYZRPYPose:
+      description: Represent a 3D pose using position (x, y, z) in meters and orientation (roll, pitch,
+        yaw) angles in radians.
+      properties:
+        pitch:
+          default: 0.0
+          title: Pitch
+          type: number
+        roll:
+          default: 0.0
+          title: Roll
+          type: number
+        x:
+          default: 0.0
+          title: X
+          type: number
+        y:
+          default: 0.0
+          title: Y
+          type: number
+        yaw:
+          default: 0.0
+          title: Yaw
+          type: number
+        z:
+          default: 0.0
+          title: Z
+          type: number
+      title: XYZRPYPose
+      type: object
+info:
+  description: 'Reachy Mini 本体の daemon が公開する REST API。
+
+    取得元: http://reachy-mini.local:8000/openapi.json
+
+    取得日: 2026-08-30 / 本体daemon 1.10.0
+
+    ブラウザから http://reachy-mini.local:8000/docs (Swagger UI) と /redoc で閲覧できる。
+
+    公式ドキュメントサイトには記載がないため、このファイルは実機から取得した記録。
+
+    info の title と version は元データでは FastAPI の初期値だったため、ここで補った。'
+  title: Reachy Mini daemon REST API
+  version: 0.1.0
+openapi: 3.1.0
+paths:
+  /:
+    get:
+      description: Redirect to the desktop app download page.
+      operationId: dashboard__get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Dashboard
+  /api/apps/check-updates:
+    get:
+      description: 'Check all installed apps for available updates.
+
+
+        Results are cached for 5 minutes unless force=True.
+
+        This performs a ''slow'' check with rate limiting to avoid overwhelming HuggingFace.'
+      operationId: check_app_updates_api_apps_check_updates_get
+      parameters:
+      - in: query
+        name: force
+        required: false
+        schema:
+          default: false
+          title: Force
+          type: boolean
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppUpdatesResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Check App Updates
+  /api/apps/current-app-status:
+    get:
+      description: Get the status of the currently running app, if any.
+      operationId: current_app_status_api_apps_current_app_status_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/AppStatus'
+                - type: 'null'
+                title: Response Current App Status Api Apps Current App Status Get
+          description: Successful Response
+      summary: Current App Status
+  /api/apps/install:
+    post:
+      description: Install a new app by its info (background, returns job_id).
+      operationId: install_app_api_apps_install_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppInfo'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Install App Api Apps Install Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Install App
+  /api/apps/install-private-space:
+    post:
+      description: 'Install a private HuggingFace space.
+
+
+        Requires HF token to be stored via /api/hf-auth/save-token first.'
+      operationId: install_private_space_api_apps_install_private_space_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrivateSpaceInstallRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Install Private Space Api Apps Install Private Space Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Install Private Space
+  /api/apps/job-status/{job_id}:
+    get:
+      description: Get status/logs for a job.
+      operationId: job_status_api_apps_job_status__job_id__get
+      parameters:
+      - in: path
+        name: job_id
+        required: true
+        schema:
+          title: Job Id
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobInfo'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Job Status
+  /api/apps/list-available:
+    get:
+      description: List all available apps (including not installed).
+      operationId: list_all_available_apps_api_apps_list_available_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/AppInfo'
+                title: Response List All Available Apps Api Apps List Available Get
+                type: array
+          description: Successful Response
+      summary: List All Available Apps
+  /api/apps/list-available/{source_kind}:
+    get:
+      description: List available apps (including not installed).
+      operationId: list_available_apps_api_apps_list_available__source_kind__get
+      parameters:
+      - in: path
+        name: source_kind
+        required: true
+        schema:
+          $ref: '#/components/schemas/SourceKind'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/AppInfo'
+                title: Response List Available Apps Api Apps List Available  Source Kind  Get
+                type: array
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: List Available Apps
+  /api/apps/remove/{app_name}:
+    post:
+      description: Remove an installed app by its name (background, returns job_id).
+      operationId: remove_app_api_apps_remove__app_name__post
+      parameters:
+      - in: path
+        name: app_name
+        required: true
+        schema:
+          title: App Name
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Remove App Api Apps Remove  App Name  Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Remove App
+  /api/apps/restart-current-app:
+    post:
+      description: Restart the currently running app.
+      operationId: restart_app_api_apps_restart_current_app_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppStatus'
+          description: Successful Response
+      summary: Restart App
+  /api/apps/start-app/{app_name}:
+    post:
+      description: Start an app by its name.
+      operationId: start_app_api_apps_start_app__app_name__post
+      parameters:
+      - in: path
+        name: app_name
+        required: true
+        schema:
+          title: App Name
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppStatus'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Start App
+  /api/apps/start-app/{app_name}/no-evict:
+    post:
+      description: Start an app only when the managed robot slot can be acquired atomically.
+      operationId: start_app_no_evict_api_apps_start_app__app_name__no_evict_post
+      parameters:
+      - in: path
+        name: app_name
+        required: true
+        schema:
+          title: App Name
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppStatus'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Start App No Evict
+  /api/apps/startup-app:
+    get:
+      description: Get the app configured to auto-start on wake-up (null if unset).
+      operationId: get_startup_app_api_apps_startup_app_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartupApp'
+          description: Successful Response
+      summary: Get Startup App
+    put:
+      description: 'Set (or clear, with null) the app that auto-starts on wake-up.
+
+
+        Must already be installed (install via /apps/install first). Applied live, so
+
+        no daemon restart is needed.'
+      operationId: set_startup_app_api_apps_startup_app_put
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartupApp'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartupApp'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Set Startup App
+  /api/apps/stop-current-app:
+    post:
+      description: Stop the currently running app.
+      operationId: stop_app_api_apps_stop_current_app_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Stop App
+  /api/apps/update/{app_name}:
+    post:
+      description: 'Update an installed app to the latest version.
+
+
+        This reinstalls the app from HuggingFace, which downloads the latest version.
+
+        Returns a job_id for tracking progress via WebSocket.'
+      operationId: update_app_api_apps_update__app_name__post
+      parameters:
+      - in: path
+        name: app_name
+        required: true
+        schema:
+          title: App Name
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Update App Api Apps Update  App Name  Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Update App
+  /api/audio/config/apply:
+    post:
+      description: Write a batch of XVF3800 parameters and optionally verify them.
+      operationId: apply_audio_config_api_audio_config_apply_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyAudioConfigRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplyAudioConfigResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Apply Audio Config
+  /api/audio/config/parameter/{name}:
+    get:
+      description: Read a single XVF3800 parameter by name.
+      operationId: read_audio_parameter_api_audio_config_parameter__name__get
+      parameters:
+      - in: path
+        name: name
+        required: true
+        schema:
+          title: Name
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadAudioParameterResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Read Audio Parameter
+  /api/camera/specs:
+    get:
+      description: 'Get the detected camera specifications.
+
+
+        Returns the camera name, available resolutions, default resolution,
+
+        intrinsic matrix (K) and distortion coefficients (D) for the camera
+
+        that the daemon detected at startup.'
+      operationId: get_camera_specs_api_camera_specs_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CameraSpecsResponse'
+          description: Successful Response
+      summary: Get Camera Specs
+  /api/daemon/hardware-id:
+    get:
+      description: 'Robot-unique hardware ID — the Pollen audio device''s USB serial.
+
+
+        Returns ``{"hardware_id": "<serial>"}`` (or ``null`` when no robot
+
+        is attached, e.g. on a developer machine). Same value across Lite
+
+        and Wireless variants; same value across reboots and OS reinstalls.'
+      operationId: get_robot_hardware_id_api_daemon_hardware_id_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  anyOf:
+                  - type: string
+                  - type: 'null'
+                title: Response Get Robot Hardware Id Api Daemon Hardware Id Get
+                type: object
+          description: Successful Response
+      summary: Get Robot Hardware Id
+  /api/daemon/restart:
+    post:
+      description: Restart the daemon.
+      operationId: restart_daemon_api_daemon_restart_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Restart Daemon Api Daemon Restart Post
+                type: object
+          description: Successful Response
+      summary: Restart Daemon
+  /api/daemon/robot-app-lock-status:
+    get:
+      description: "Return the current state of the robot's managed-app lock.\n\nThe daemon's single source\
+        \ of truth for which managed app (if any)\ncurrently holds the robot:\n\n- ``free``: no managed\
+        \ app holds the slot.\n- ``local_app``: a Python app launched via AppManager is running.\n  ``holder_name``\
+        \ is the app name.\n- ``remote_session``: a remote WebRTC client is connected via the\n  central\
+        \ signaling relay. ``holder_name`` is a generic ``\"remote\"``\n  placeholder (the real consumer\
+        \ app name lives on the central\n  server and is surfaced via its own ``/api/robot-status``).\n\
+        \nNote that SDK clients talking to the daemon directly bypass this\nlock; it only reflects the\
+        \ two *managed* app entry points.\n\nIntended for UI layers (desktop app, dashboard) that want\
+        \ to render\na busy/free indicator without trying to open a session."
+      operationId: get_robot_app_lock_status_api_daemon_robot_app_lock_status_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RobotAppLockStatus'
+          description: Successful Response
+      summary: Get Robot App Lock Status
+  /api/daemon/robot-name:
+    get:
+      description: 'Return the robot''s current display name.
+
+
+        Reports the effective/advertised name: the persisted override when a
+
+        client has renamed the robot, otherwise the ``--robot-name`` default the
+
+        daemon is running with. A client can pre-fill a rename field from this
+
+        without having to fall back to the daemon status for the default.'
+      operationId: get_robot_display_name_api_daemon_robot_name_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RobotNameResponse'
+          description: Successful Response
+      summary: Get Robot Display Name
+    post:
+      description: 'Persist a new robot display name and apply it live (no restart).
+
+
+        Persists the name to disk, then refreshes the advertised copies so the
+
+        rename takes effect immediately: the daemon status + central relay (via
+
+        ``Daemon.apply_robot_name``) and the LAN mDNS record. This is the REST
+
+        entry point used by the BLE setup service; the WebRTC ``set_robot_name``
+
+        command goes through the same live-apply path on the backend.'
+      operationId: set_robot_display_name_api_daemon_robot_name_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RobotNameRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RobotNameResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Set Robot Display Name
+  /api/daemon/start:
+    post:
+      description: Start the daemon.
+      operationId: start_daemon_api_daemon_start_post
+      parameters:
+      - in: query
+        name: wake_up
+        required: true
+        schema:
+          title: Wake Up
+          type: boolean
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Start Daemon Api Daemon Start Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Start Daemon
+  /api/daemon/status:
+    get:
+      description: Get the current status of the daemon.
+      operationId: get_daemon_status_api_daemon_status_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DaemonStatus'
+          description: Successful Response
+      summary: Get Daemon Status
+  /api/daemon/stop:
+    post:
+      description: Stop the daemon, optionally putting the robot to sleep.
+      operationId: stop_daemon_api_daemon_stop_post
+      parameters:
+      - in: query
+        name: goto_sleep
+        required: true
+        schema:
+          title: Goto Sleep
+          type: boolean
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Stop Daemon Api Daemon Stop Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Stop Daemon
+  /api/hf-auth/central-robot-status:
+    get:
+      description: "Proxy to the central signaling server's /api/robot-status endpoint.\n\nUses the stored\
+        \ HF token server-side so the desktop frontend never\nsees the raw token. The frontend polls this\
+        \ to know whether any of\nthe user's robots is currently held by a remote JS app, and if so\n\
+        which one (so it can show \"In use by Hand Tracker\" in the UI).\n\nResponse shape:\n    { \"\
+        available\": bool, \"robots\": [...], \"reason\": str? }\n\n`available` is false when:\n  - no\
+        \ HF token stored (user not logged in)\n  - central server is unreachable / returned an error\n\
+        Callers should treat `available: false` as \"unknown, don't block\"."
+      operationId: get_central_robot_status_api_hf_auth_central_robot_status_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                title: Response Get Central Robot Status Api Hf Auth Central Robot Status Get
+                type: object
+          description: Successful Response
+      summary: Get Central Robot Status
+  /api/hf-auth/oauth/begin:
+    get:
+      description: 'One-shot OAuth entry point for the mobile setup flow.
+
+
+        Creates a session and 302-redirects the browser straight to Hugging Face''s
+
+        authorize page, so the phone only has to open this single URL. The existing
+
+        /oauth/callback finishes the job (exchange → store token → start relay).'
+      operationId: begin_oauth_api_hf_auth_oauth_begin_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Begin Oauth
+  /api/hf-auth/oauth/callback:
+    get:
+      description: 'Handle OAuth callback from HuggingFace.
+
+
+        This is where HF redirects after user authorizes.
+
+        Shows a success/error page that the user can close.'
+      operationId: oauth_callback_api_hf_auth_oauth_callback_get
+      parameters:
+      - in: query
+        name: code
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Code
+      - in: query
+        name: state
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State
+      - in: query
+        name: error
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+      - in: query
+        name: error_description
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Description
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Oauth Callback
+  /api/hf-auth/oauth/configured:
+    get:
+      description: Check if OAuth is configured.
+      operationId: is_oauth_configured_api_hf_auth_oauth_configured_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                title: Response Is Oauth Configured Api Hf Auth Oauth Configured Get
+                type: object
+          description: Successful Response
+      summary: Is Oauth Configured
+  /api/hf-auth/oauth/device/session/{session_id}:
+    delete:
+      description: Cancel a pending device-code login session.
+      operationId: cancel_device_oauth_session_api_hf_auth_oauth_device_session__session_id__delete
+      parameters:
+      - in: path
+        name: session_id
+        required: true
+        schema:
+          title: Session Id
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Cancel Device Oauth Session Api Hf Auth Oauth Device Session  Session
+                  Id  Delete
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Cancel Device Oauth Session
+  /api/hf-auth/oauth/device/start:
+    post:
+      description: 'Start a device-code OAuth login.
+
+
+        Returns a `user_code` and `verification_uri(_complete)` to show the user, plus
+
+        a `session_id` to poll via `/oauth/device/status/{session_id}`.'
+      operationId: start_device_oauth_api_hf_auth_oauth_device_start_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                title: Response Start Device Oauth Api Hf Auth Oauth Device Start Post
+                type: object
+          description: Successful Response
+      summary: Start Device Oauth
+  /api/hf-auth/oauth/device/status/{session_id}:
+    get:
+      description: 'Poll for device-code login completion.
+
+
+        On the first poll that reports success, bring the central relay up (a
+
+        token-less boot has no relay instance yet), mirroring the OAuth callback.'
+      operationId: get_device_oauth_status_api_hf_auth_oauth_device_status__session_id__get
+      parameters:
+      - in: path
+        name: session_id
+        required: true
+        schema:
+          title: Session Id
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                title: Response Get Device Oauth Status Api Hf Auth Oauth Device Status  Session Id  Get
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Get Device Oauth Status
+  /api/hf-auth/oauth/session/{session_id}:
+    delete:
+      description: Cancel an OAuth session.
+      operationId: cancel_oauth_session_api_hf_auth_oauth_session__session_id__delete
+      parameters:
+      - in: path
+        name: session_id
+        required: true
+        schema:
+          title: Session Id
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Cancel Oauth Session Api Hf Auth Oauth Session  Session Id  Delete
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Cancel Oauth Session
+  /api/hf-auth/oauth/start:
+    get:
+      description: "Start a new OAuth authorization session.\n\nReturns the auth_url to redirect the user\
+        \ to HuggingFace.\n\nArgs:\n    request: The incoming HTTP request.\n    use_localhost: When True,\
+        \ use localhost:8000 as the OAuth callback URL.\n        Passed by the desktop app which proxies\
+        \ localhost:8000 to the robot."
+      operationId: start_oauth_api_hf_auth_oauth_start_get
+      parameters:
+      - in: query
+        name: use_localhost
+        required: false
+        schema:
+          default: false
+          title: Use Localhost
+          type: boolean
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                title: Response Start Oauth Api Hf Auth Oauth Start Get
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Start Oauth
+  /api/hf-auth/oauth/status/{session_id}:
+    get:
+      description: 'Poll for OAuth session status.
+
+
+        The frontend polls this endpoint to check if the user has
+
+        completed authorization.'
+      operationId: get_oauth_status_api_hf_auth_oauth_status__session_id__get
+      parameters:
+      - in: path
+        name: session_id
+        required: true
+        schema:
+          title: Session Id
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                title: Response Get Oauth Status Api Hf Auth Oauth Status  Session Id  Get
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Get Oauth Status
+  /api/hf-auth/refresh-relay:
+    post:
+      description: "Force the central signaling relay to reconnect — see ``notify_force_reconnect``.\n\
+        \nResponse shapes:\n  - ``{\"status\": \"requested\", \"token_available\": bool}`` — a\n    reconnect\
+        \ was kicked off.\n  - ``{\"status\": \"skipped\", \"token_available\": bool,\n        \"reason\"\
+        : \"relay_not_running\" | \"relay_unavailable\"}`` — no\n    reconnect happened. The mobile app's\
+        \ auto-heal loop must NOT\n    wait for a state change in this case (it would hang forever).\n\
+        \    ``relay_unavailable`` covers the import failure (Lite-only\n    build that ships no relay\
+        \ module); ``relay_not_running`` covers\n    the module-present-but-no-instance case (daemon started\n\
+        \    without a token / pre-init / shutdown)."
+      operationId: refresh_relay_api_hf_auth_refresh_relay_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                title: Response Refresh Relay Api Hf Auth Refresh Relay Post
+                type: object
+          description: Successful Response
+      summary: Refresh Relay
+  /api/hf-auth/relay-status:
+    get:
+      description: Get the central signaling relay connection status.
+      operationId: get_relay_status_api_hf_auth_relay_status_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                title: Response Get Relay Status Api Hf Auth Relay Status Get
+                type: object
+          description: Successful Response
+      summary: Get Relay Status
+  /api/hf-auth/save-token:
+    post:
+      description: Save HuggingFace token after validation.
+      operationId: save_token_api_hf_auth_save_token_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Save Token
+  /api/hf-auth/status:
+    get:
+      description: Check if user is authenticated with HuggingFace.
+      operationId: get_auth_status_api_hf_auth_status_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                title: Response Get Auth Status Api Hf Auth Status Get
+                type: object
+          description: Successful Response
+      summary: Get Auth Status
+  /api/hf-auth/token:
+    delete:
+      description: Delete stored HuggingFace token.
+      operationId: delete_token_api_hf_auth_token_delete
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Delete Token Api Hf Auth Token Delete
+                type: object
+          description: Successful Response
+      summary: Delete Token
+  /api/kinematics/info:
+    get:
+      description: Get the current information of the kinematics.
+      operationId: get_kinematics_info_api_kinematics_info_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                title: Response Get Kinematics Info Api Kinematics Info Get
+                type: object
+          description: Successful Response
+      summary: Get Kinematics Info
+  /api/kinematics/stl/{filename}:
+    get:
+      description: Get the path to an STL asset file.
+      operationId: get_stl_file_api_kinematics_stl__filename__get
+      parameters:
+      - in: path
+        name: filename
+        required: true
+        schema:
+          format: path
+          title: Filename
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Get Stl File
+  /api/kinematics/urdf:
+    get:
+      description: Get the URDF representation of the robot.
+      operationId: get_urdf_api_kinematics_urdf_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Get Urdf Api Kinematics Urdf Get
+                type: object
+          description: Successful Response
+      summary: Get Urdf
+  /api/media/acquire:
+    post:
+      description: Re-acquire camera and audio hardware.
+      operationId: acquire_media_api_media_acquire_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Acquire Media Api Media Acquire Post
+                type: object
+          description: Successful Response
+      summary: Acquire Media
+  /api/media/clear_incoming_audio:
+    post:
+      description: 'Drop audio received from WebRTC clients that is queued for the speaker.
+
+
+        Used for barge-in so the robot stops speaking already-buffered audio.'
+      operationId: clear_incoming_audio_api_media_clear_incoming_audio_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Clear Incoming Audio Api Media Clear Incoming Audio Post
+                type: object
+          description: Successful Response
+      summary: Clear Incoming Audio
+  /api/media/play_sound:
+    post:
+      description: 'Play a sound file on the robot''s speaker.
+
+
+        The *file* field can be:
+
+        - An absolute path on the daemon''s filesystem.
+
+        - A filename relative to the built-in assets directory.
+
+        - A filename previously uploaded to the sounds temp directory.'
+      operationId: play_sound_api_media_play_sound_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaySoundRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Play Sound Api Media Play Sound Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Play Sound
+  /api/media/release:
+    post:
+      description: Release camera and audio hardware for direct client access.
+      operationId: release_media_api_media_release_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Release Media Api Media Release Post
+                type: object
+          description: Successful Response
+      summary: Release Media
+  /api/media/sounds:
+    get:
+      description: List sound files in the daemon's temporary sound directory.
+      operationId: list_sounds_api_media_sounds_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  items:
+                    type: string
+                  type: array
+                title: Response List Sounds Api Media Sounds Get
+                type: object
+          description: Successful Response
+      summary: List Sounds
+  /api/media/sounds/upload:
+    post:
+      description: "Upload a sound file to the daemon's temporary sound directory.\n\nThe file is saved\
+        \ to ``/tmp/reachy_mini_sounds/<original_filename>``.\nIf a file with the same name already exists\
+        \ it is overwritten.\n\nThe upload is restricted to known audio extensions, capped at\n``MAX_SOUND_UPLOAD_BYTES``,\
+        \ and validated by content before being stored,\nso non-audio payloads cannot be written to disk.\n\
+        \nReturns:\n    JSON with the absolute *path* of the saved file on the daemon."
+      operationId: upload_sound_api_media_sounds_upload_post
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_upload_sound_api_media_sounds_upload_post'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Upload Sound Api Media Sounds Upload Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Upload Sound
+  /api/media/sounds/{filename}:
+    delete:
+      description: 'Delete a sound file from the daemon''s temporary sound directory.
+
+
+        Only files inside the temp directory can be deleted (no path traversal).'
+      operationId: delete_sound_api_media_sounds__filename__delete
+      parameters:
+      - in: path
+        name: filename
+        required: true
+        schema:
+          title: Filename
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Delete Sound Api Media Sounds  Filename  Delete
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Delete Sound
+  /api/media/status:
+    get:
+      description: Get the current media status.
+      operationId: media_status_api_media_status_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: boolean
+                title: Response Media Status Api Media Status Get
+                type: object
+          description: Successful Response
+      summary: Media Status
+  /api/media/stop_sound:
+    post:
+      description: Stop the currently playing sound file.
+      operationId: stop_sound_api_media_stop_sound_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Stop Sound Api Media Stop Sound Post
+                type: object
+          description: Successful Response
+      summary: Stop Sound
+  /api/media/tracking/disable:
+    post:
+      description: Disable daemon-side visual head tracking.
+      operationId: disable_tracking_api_media_tracking_disable_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  anyOf:
+                  - type: string
+                  - type: boolean
+                title: Response Disable Tracking Api Media Tracking Disable Post
+                type: object
+          description: Successful Response
+      summary: Disable Tracking
+  /api/media/tracking/enable:
+    post:
+      description: Enable daemon-side visual head tracking.
+      operationId: enable_tracking_api_media_tracking_enable_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/EnableTrackingRequest'
+              - type: 'null'
+              title: Body
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  anyOf:
+                  - type: string
+                  - type: boolean
+                title: Response Enable Tracking Api Media Tracking Enable Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Enable Tracking
+  /api/media/tracking/face:
+    get:
+      description: Return the latest face observed by daemon-side head tracking.
+      operationId: get_tracked_face_api_media_tracking_face_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                title: Response Get Tracked Face Api Media Tracking Face Get
+                type: object
+          description: Successful Response
+      summary: Get Tracked Face
+  /api/media/wobbling/disable:
+    post:
+      description: Disable audio-reactive head wobbling and reset offsets.
+      operationId: disable_wobbling_api_media_wobbling_disable_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Disable Wobbling Api Media Wobbling Disable Post
+                type: object
+          description: Successful Response
+      summary: Disable Wobbling
+  /api/media/wobbling/enable:
+    post:
+      description: 'Enable audio-reactive head wobbling.
+
+
+        When enabled, audio played on the daemon (sounds, incoming WebRTC
+
+        audio) is analysed and converted into subtle head movements.'
+      operationId: enable_wobbling_api_media_wobbling_enable_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Enable Wobbling Api Media Wobbling Enable Post
+                type: object
+          description: Successful Response
+      summary: Enable Wobbling
+  /api/motors/set_mode/{mode}:
+    post:
+      description: Set the motor control mode.
+      operationId: set_motor_mode_api_motors_set_mode__mode__post
+      parameters:
+      - in: path
+        name: mode
+        required: true
+        schema:
+          $ref: '#/components/schemas/MotorControlMode'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Set Motor Mode Api Motors Set Mode  Mode  Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Set Motor Mode
+  /api/motors/status:
+    get:
+      description: Get the current status of the motors.
+      operationId: get_motor_status_api_motors_status_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MotorStatus'
+          description: Successful Response
+      summary: Get Motor Status
+  /api/move/goto:
+    post:
+      description: Request a movement to a specific target.
+      operationId: goto_api_move_goto_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GotoModelRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoveUUID'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Goto
+  /api/move/play/goto_sleep:
+    post:
+      description: Request the robot to go to sleep.
+      operationId: play_goto_sleep_api_move_play_goto_sleep_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoveUUID'
+          description: Successful Response
+      summary: Play Goto Sleep
+  /api/move/play/recorded-move-dataset/{dataset_name}/{move_name}:
+    post:
+      description: Request the robot to play a predefined recorded move from a dataset.
+      operationId: play_recorded_move_dataset_api_move_play_recorded_move_dataset__dataset_name___move_name__post
+      parameters:
+      - in: path
+        name: dataset_name
+        required: true
+        schema:
+          title: Dataset Name
+          type: string
+      - in: path
+        name: move_name
+        required: true
+        schema:
+          title: Move Name
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoveUUID'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Play Recorded Move Dataset
+  /api/move/play/wake_up:
+    post:
+      description: Request the robot to wake up.
+      operationId: play_wake_up_api_move_play_wake_up_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoveUUID'
+          description: Successful Response
+      summary: Play Wake Up
+  /api/move/recorded-move-datasets/list/{dataset_name}:
+    get:
+      description: List available recorded moves in a dataset.
+      operationId: list_recorded_move_dataset_api_move_recorded_move_datasets_list__dataset_name__get
+      parameters:
+      - in: path
+        name: dataset_name
+        required: true
+        schema:
+          title: Dataset Name
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  type: string
+                title: Response List Recorded Move Dataset Api Move Recorded Move Datasets List  Dataset
+                  Name  Get
+                type: array
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: List Recorded Move Dataset
+  /api/move/running:
+    get:
+      description: Get a list of currently running move tasks.
+      operationId: get_running_moves_api_move_running_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/MoveUUID'
+                title: Response Get Running Moves Api Move Running Get
+                type: array
+          description: Successful Response
+      summary: Get Running Moves
+  /api/move/set_target:
+    post:
+      description: POST route to set a single FullBodyTarget.
+      operationId: set_target_api_move_set_target_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FullBodyTarget'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Set Target Api Move Set Target Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Set Target
+  /api/move/stop:
+    post:
+      description: Stop a running move task.
+      operationId: stop_move_api_move_stop_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveUUID'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Stop Move Api Move Stop Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Stop Move
+  /api/state/doa:
+    get:
+      description: 'Get the Direction of Arrival from the microphone array.
+
+
+        Returns the angle in radians (0=left, π/2=front, π=right) and speech detection status.
+
+        Returns None if the audio device is not available or no reading has
+
+        landed yet (the first one lands within ~100 ms of the first request).'
+      operationId: get_doa_api_state_doa_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/DoaSnapshot'
+                - type: 'null'
+                title: Response Get Doa Api State Doa Get
+          description: Successful Response
+      summary: Get Doa
+  /api/state/full:
+    get:
+      description: Get the full robot state, with optional fields.
+      operationId: get_full_state_api_state_full_get
+      parameters:
+      - in: query
+        name: with_control_mode
+        required: false
+        schema:
+          default: true
+          title: With Control Mode
+          type: boolean
+      - in: query
+        name: with_head_pose
+        required: false
+        schema:
+          default: true
+          title: With Head Pose
+          type: boolean
+      - in: query
+        name: with_target_head_pose
+        required: false
+        schema:
+          default: false
+          title: With Target Head Pose
+          type: boolean
+      - in: query
+        name: with_head_joints
+        required: false
+        schema:
+          default: false
+          title: With Head Joints
+          type: boolean
+      - in: query
+        name: with_target_head_joints
+        required: false
+        schema:
+          default: false
+          title: With Target Head Joints
+          type: boolean
+      - in: query
+        name: with_body_yaw
+        required: false
+        schema:
+          default: true
+          title: With Body Yaw
+          type: boolean
+      - in: query
+        name: with_target_body_yaw
+        required: false
+        schema:
+          default: false
+          title: With Target Body Yaw
+          type: boolean
+      - in: query
+        name: with_antenna_positions
+        required: false
+        schema:
+          default: true
+          title: With Antenna Positions
+          type: boolean
+      - in: query
+        name: with_target_antenna_positions
+        required: false
+        schema:
+          default: false
+          title: With Target Antenna Positions
+          type: boolean
+      - in: query
+        name: with_passive_joints
+        required: false
+        schema:
+          default: false
+          title: With Passive Joints
+          type: boolean
+      - in: query
+        name: with_doa
+        required: false
+        schema:
+          default: false
+          title: With Doa
+          type: boolean
+      - in: query
+        name: use_pose_matrix
+        required: false
+        schema:
+          default: false
+          title: Use Pose Matrix
+          type: boolean
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FullState'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Get Full State
+  /api/state/present_antenna_joint_positions:
+    get:
+      description: Get the present antenna joint positions (in radians) - (left, right).
+      operationId: get_antenna_joint_positions_api_state_present_antenna_joint_positions_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                maxItems: 2
+                minItems: 2
+                prefixItems:
+                - type: number
+                - type: number
+                title: Response Get Antenna Joint Positions Api State Present Antenna Joint Positions
+                  Get
+                type: array
+          description: Successful Response
+      summary: Get Antenna Joint Positions
+  /api/state/present_body_yaw:
+    get:
+      description: Get the present body yaw (in radians).
+      operationId: get_body_yaw_api_state_present_body_yaw_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                title: Response Get Body Yaw Api State Present Body Yaw Get
+                type: number
+          description: Successful Response
+      summary: Get Body Yaw
+  /api/state/present_head_pose:
+    get:
+      description: "Get the present head pose.\n\nArguments:\n    use_pose_matrix (bool): Whether to use\
+        \ the pose matrix representation (4x4 flattened) or the translation + Euler angles representation\
+        \ (x, y, z, roll, pitch, yaw).\n    backend (Backend): The backend instance.\n\nReturns:\n   \
+        \ AnyPose: The present head pose."
+      operationId: get_head_pose_api_state_present_head_pose_get
+      parameters:
+      - in: query
+        name: use_pose_matrix
+        required: false
+        schema:
+          default: false
+          title: Use Pose Matrix
+          type: boolean
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/XYZRPYPose'
+                - $ref: '#/components/schemas/Matrix4x4Pose'
+                title: Response Get Head Pose Api State Present Head Pose Get
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Get Head Pose
+  /api/volume/current:
+    get:
+      description: Get the current output volume level.
+      operationId: get_volume_api_volume_current_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeResponse'
+          description: Successful Response
+      summary: Get Volume
+  /api/volume/microphone/current:
+    get:
+      description: Get the current microphone input volume level.
+      operationId: get_microphone_volume_api_volume_microphone_current_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeResponse'
+          description: Successful Response
+      summary: Get Microphone Volume
+  /api/volume/microphone/set:
+    post:
+      description: Set the microphone input volume level.
+      operationId: set_microphone_volume_api_volume_microphone_set_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolumeRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Set Microphone Volume
+  /api/volume/set:
+    post:
+      description: Set the output volume level and play a test sound.
+      operationId: set_volume_api_volume_set_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolumeRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Set Volume
+  /api/volume/test-sound:
+    post:
+      description: Play a test sound.
+      operationId: play_test_sound_api_volume_test_sound_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestSoundResponse'
+          description: Successful Response
+      summary: Play Test Sound
+  /cache/clear-hf:
+    post:
+      description: Clear HuggingFace cache directory.
+      operationId: clear_huggingface_cache_cache_clear_hf_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Clear Huggingface Cache Cache Clear Hf Post
+                type: object
+          description: Successful Response
+      summary: Clear Huggingface Cache
+  /cache/reset-apps:
+    post:
+      description: Remove applications virtual environment directory.
+      operationId: reset_apps_cache_reset_apps_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Reset Apps Cache Reset Apps Post
+                type: object
+          description: Successful Response
+      summary: Reset Apps
+  /health-check:
+    post:
+      description: Health check endpoint to reset the health check timer.
+      operationId: health_check_health_check_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Health Check Health Check Post
+                type: object
+          description: Successful Response
+      summary: Health Check
+  /logs:
+    get:
+      description: Redirect to the desktop app download page.
+      operationId: logs_page_logs_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Logs Page
+  /settings:
+    get:
+      description: Redirect to the desktop app download page.
+      operationId: settings_settings_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Settings
+  /update/available:
+    get:
+      description: Check if an update is available for Reachy Mini Wireless.
+      operationId: available_update_available_get
+      parameters:
+      - in: query
+        name: pre_release
+        required: false
+        schema:
+          default: false
+          title: Pre Release
+          type: boolean
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  additionalProperties:
+                    additionalProperties:
+                      anyOf:
+                      - type: boolean
+                      - type: string
+                    type: object
+                  type: object
+                title: Response Available Update Available Get
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Available
+  /update/info:
+    get:
+      description: Get the info of an update job.
+      operationId: get_update_info_update_info_get
+      parameters:
+      - in: query
+        name: job_id
+        required: true
+        schema:
+          title: Job Id
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobInfo'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Get Update Info
+  /update/install-source:
+    get:
+      description: 'Get current install source: version, source type (pypi/git/editable), and git ref
+        if applicable.'
+      operationId: install_source_update_install_source_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Install Source Update Install Source Get
+                type: object
+          description: Successful Response
+      summary: Install Source
+  /update/start:
+    post:
+      description: Start the update process for Reachy Mini Wireless version.
+      operationId: start_update_update_start_post
+      parameters:
+      - in: query
+        name: pre_release
+        required: false
+        schema:
+          default: false
+          title: Pre Release
+          type: boolean
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Start Update Update Start Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Start Update
+  /update/start-from-ref:
+    post:
+      description: Start update from a specific git ref (tag or branch).
+      operationId: start_update_from_ref_update_start_from_ref_post
+      parameters:
+      - in: query
+        name: git_ref
+        required: true
+        schema:
+          title: Git Ref
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Start Update From Ref Update Start From Ref Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Start Update From Ref
+  /update/validate-ref:
+    get:
+      description: Check if a git ref (tag/branch) exists on GitHub.
+      operationId: validate_ref_update_validate_ref_get
+      parameters:
+      - in: query
+        name: git_ref
+        required: true
+        schema:
+          title: Git Ref
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  anyOf:
+                  - type: boolean
+                  - type: string
+                title: Response Validate Ref Update Validate Ref Get
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Validate Ref
+  /wifi/connect:
+    post:
+      description: Connect to a WiFi network. It will create a new connection using nmcli if the specified
+        SSID is not already configured.
+      operationId: connect_to_wifi_network_wifi_connect_post
+      parameters:
+      - in: query
+        name: ssid
+        required: true
+        schema:
+          title: Ssid
+          type: string
+      - in: query
+        name: password
+        required: true
+        schema:
+          title: Password
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Connect To Wifi Network
+  /wifi/connect_sealed:
+    post:
+      description: 'Connect to a WiFi network using an encrypted password.
+
+
+        The plaintext password never crosses BLE or the local HTTP hop — it is
+
+        AES-GCM-sealed by the phone and opened here. See the scheme comment above.'
+      operationId: connect_to_wifi_network_sealed_wifi_connect_sealed_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SealedConnect'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Connect To Wifi Network Sealed
+  /wifi/error:
+    get:
+      description: Get the last WiFi error.
+      operationId: get_last_wifi_error_wifi_error_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  anyOf:
+                  - type: string
+                  - type: 'null'
+                title: Response Get Last Wifi Error Wifi Error Get
+                type: object
+          description: Successful Response
+      summary: Get Last Wifi Error
+  /wifi/forget:
+    post:
+      description: Forget a saved WiFi network. Falls back to Hotspot if forgetting the active network.
+      operationId: forget_wifi_network_wifi_forget_post
+      parameters:
+      - in: query
+        name: ssid
+        required: true
+        schema:
+          title: Ssid
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Forget Wifi Network
+  /wifi/forget_all:
+    post:
+      description: Forget all saved WiFi networks (except Hotspot). Falls back to Hotspot.
+      operationId: forget_all_wifi_networks_wifi_forget_all_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Forget All Wifi Networks
+  /wifi/prov_key:
+    get:
+      description: 'Return the robot''s ephemeral X25519 public key for sealed provisioning.
+
+
+        Public on purpose: a bare public key is useless to an attacker who does
+
+        not also know the device PIN (which is mixed into the key derivation).'
+      operationId: get_provisioning_key_wifi_prov_key_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Get Provisioning Key Wifi Prov Key Get
+                type: object
+          description: Successful Response
+      summary: Get Provisioning Key
+  /wifi/reset_error:
+    post:
+      description: Reset the last WiFi error.
+      operationId: reset_last_wifi_error_wifi_reset_error_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                title: Response Reset Last Wifi Error Wifi Reset Error Post
+                type: object
+          description: Successful Response
+      summary: Reset Last Wifi Error
+  /wifi/scan_and_list:
+    post:
+      description: Scan for available WiFi networks ordered by signal power.
+      operationId: scan_wifi_wifi_scan_and_list_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  type: string
+                title: Response Scan Wifi Wifi Scan And List Post
+                type: array
+          description: Successful Response
+      summary: Scan Wifi
+  /wifi/setup_hotspot:
+    post:
+      description: Set up a WiFi hotspot. It will create a new hotspot using nmcli if one does not already
+        exist.
+      operationId: setup_hotspot_wifi_setup_hotspot_post
+      parameters:
+      - in: query
+        name: ssid
+        required: false
+        schema:
+          default: reachy-mini-ap
+          title: Ssid
+          type: string
+      - in: query
+        name: password
+        required: false
+        schema:
+          default: reachy-mini
+          title: Password
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Setup Hotspot
+  /wifi/status:
+    get:
+      description: Get the current WiFi status.
+      operationId: get_wifi_status_wifi_status_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WifiStatus'
+          description: Successful Response
+      summary: Get Wifi Status
