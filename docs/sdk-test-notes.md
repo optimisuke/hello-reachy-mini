@@ -2356,3 +2356,199 @@ STT / LLM / TTS を実APIで測って選んだ記録（TTFT、トークン消費
 - `gpt-5.6-luna` は「function tools と reasoning_effort は併用不可」で400
 - `language='jp'` は400。ISO-639-1 なので `ja`
 
+### 現象：`POST /cache/reset-apps` で apps_venv が消えた（2026-08-30・自分でやった）
+
+ダッシュボードが古い名前でアプリを起動しようとして失敗したので、一覧のキャッシュを
+更新しようと `POST /cache/reset-apps` を叩いた。
+
+- **原因**：この endpoint は**キャッシュではなく `/venvs/apps_venv` そのものを削除する**。
+  返ってきたのは `{"status":"success","message":"Applications virtual environment removed"}`。
+  インストール済みアプリ（会話アプリ、hand_tracker_v2、clock、remote_control）が全部消え、
+  各アプリのインスタンスdir（**`.env` の APIキー、`memory.v1.json`、`startup_settings.json`**）も
+  一緒に消えた。
+- **daemon を再起動しても venv は再生成されない**（4分待って確認）。復旧は手作業。
+- **解決**：
+  ```bash
+  # daemon venv が使っている 3.12 の本体を見つける（uv が入れたもの）
+  grep home /venvs/mini_daemon/pyvenv.cfg
+  PY=/home/pollen/.local/share/uv/python/cpython-3.12.12-linux-aarch64-gnu/bin/python3.12
+  $PY -m venv /venvs/apps_venv
+  /venvs/apps_venv/bin/pip install "reachy-mini==1.10.0"
+  /venvs/apps_venv/bin/pip install --no-deps ~/conv-app
+  /venvs/apps_venv/bin/pip install "openai==2.28.0" "mcp>=1.27.1,<2" reachy_mini_dances_library
+  /venvs/apps_venv/bin/pip check          # 依存の抜けを確認
+  scp .env <robot>:/venvs/apps_venv/lib/python3.12/site-packages/<pkg>/.env
+  ```
+  `~/.cache/pip` に 89M 残っていたので再インストールは速かった。
+  `/venvs/.app_metadata/` は apps_venv の外なので**生き残る**（ダッシュボードのカードは無傷）。
+- **学び**：**endpoint 名から挙動を推測して叩くな。** `reset-apps` は「アプリ一覧のキャッシュを
+  作り直す」ではなく「アプリ環境を消す」だった。OpenAPI の説明を読むか、まず GET で確かめる。
+  今回は「古い名前で起動しようとする」というダッシュボード側のキャッシュ問題に対して、
+  そもそも**アプリを再インストールすれば済む**話だった。
+
+### 学び：パッケージ改名の副作用（同 2026-08-30）
+
+上流に上書きされないようパッケージ名を `reachy_mini_conversation_ja` に変えたが、副作用が2つ。
+
+1. **インスタンスdirが移る**（`_get_instance_path()` はモジュール位置基準）。`.env`・記憶・
+   スタートアップ設定を新しい場所に移し替える必要がある
+2. **ダッシュボードが古い entry point 名で起動しようとして失敗する**
+   （`ValueError: No entry point found for app 'reachy_mini_conversation_app'`）。
+   アプリを再インストールすれば一覧が更新される
+
+
+## gpt-realtime-2.1-mini は事実を自信たっぷりに間違える
+
+### 現象
+実機で戦国時代の雑談をしたところ、会話としては滑らかに続くのに、中身が壊れた。
+
+- 藤堂高虎を「黒田官兵衛の家老として有名」と説明した（誤り。高虎は浅井→秀長→秀吉→家康に仕え、築城の名手として知られる）
+- 「羽柴秀次は甥っぽい関係だったと聞いたよ」— 事実（甥）なのに伝聞のようにぼかす
+- 直前の自分の発言を聞き返されて、実際には言っていない内容を答えた
+- 「本人だけど、ほとんどニュースみたいな雰囲気だよ」— 日本語として意味が通らない
+
+一方、羽柴秀長の説明（秀吉の弟で政権を支えた）は正確で、「難しい問題も分かる?」には
+「ある程度は分かるけど、全部じゃないよ」と正直に答えた。壊れ方は断続的。
+
+### 原因
+OpenAI が gpt-realtime-mini について明記している「指示追従が弱い」の実地版。
+音声モデルは小さいほど知識と一貫性が落ちる。ツール呼び出しやカメラ経由の描写は
+問題なかったので、壊れているのは**知識と自己一貫性**だけ。
+直接バックエンド（gpt-5.4-mini がテキストを書く）では起きていなかった。
+
+固有名詞の聞き取りも弱い。「好きな武将いる?」→「好きな部署いる?」、
+「藤堂高虎」→「童の高虎」。無音に対して「汽笛の音」という文字列を作ったこともある
+（Whisper 系に共通する、無音からの幻聴）。
+
+### 解決
+費用3倍（音声出力 $10→$32/1M）の gpt-realtime-2.1 に上げるかは判断待ちにして、
+まずプロフィールで押さえた。断定を禁じるのではなく、**自信がないときはそう言う**
+方向の規則を2つ追加した。
+
+- 人名・年代・主従関係は確信があるときだけ断定する。曖昧なら「うろ覚えだけど」と添えるか、
+  知らないと言う。名前や関係を当てずっぽうで言い切るのは、短く「自信ないな」と言うより悪い。
+- 聞こえた名前が会話に合わないときは聞き間違いとして扱い、その名前について答えずに聞き返す。
+
+### 学び
+小さい音声モデルの評価軸は「日本語が話せるか」ではなく「知らないことを知らないと言えるか」
+だった。応答 0.2 秒という速さは本物で、ツールも動く。落ちているのは知識だけなので、
+**速さを取るか知識を取るか**という素直なトレードオフになる。禁止（「間違えるな」）は
+効かないが、不確かさの表明を求める規則は小さいモデルにも効きやすい。
+
+## 天気ツールが毎回「どの都市?」と聞き、時刻ツールが UTC で答える
+
+### 現象
+遅延対策で外していた天気・検索・時刻の3ツールをプロフィールに戻したところ、
+どちらも動くのに答えが使えなかった。
+
+- 「今日って何日?」→「10時24分」。実際は日本時間 19時24分（UTC で答えていた）
+- 「天気教えて」→「都市や地域を教えてくれれば調べるよ」。毎回聞かれる
+
+さらに、都市名を答えても失敗した。「兵庫県神戸市灘区」「六甲道駅」はヒットせず、
+「神戸市」で初めて成功した（曇り29度）。
+
+### 原因
+どちらもリモートの Hugging Face Space で動いていて、**ロボットの居場所を知らない**。
+時刻ツールは timezone を空で呼ぶと「利用者のローカル時刻」ではなく
+**サーバのローカル時刻（UTC）** を返す仕様だった。天気ツールは location が必須なので、
+モデルは知らないから聞くしかない。アプリ側が場所を一度も伝えていなかった。
+
+余談として、ロボット本体の時計も `Europe/London (BST)` のままだった。
+Pollen 出荷時の設定がそのまま残っている。
+
+### 解決
+場所を環境変数にして、セッション指示に差し込んだ。`CONVERSATION_TIMEZONE` と
+`CONVERSATION_LOCATION` で、どちらも未設定なら何も言わない（上流の挙動を変えない）。
+
+```env
+CONVERSATION_TIMEZONE=Asia/Tokyo
+CONVERSATION_LOCATION="Kobe, Japan"
+```
+
+指示文には「timezone を空にすると UTC になるので必ず渡せ」という**理由**と、
+「見つからなければ府県や近くの大都市に広げて、利用者に聞き返すな」という
+失敗時の逃げ道を書いた。ジオコーダが番地レベルを解けないという実測に対応している。
+
+`.env` で値を引用符で囲むのを忘れると、`CONVERSATION_LOCATION=Kobe, Japan` が
+シェル経由の読み込みで「Japan: command not found」になり、場所だけ静かに欠ける。
+
+### 学び
+リモートツールの「既定値」は利用者にとっての自然な既定値ではない。
+timezone 空欄が「利用者のローカル」を意味するとドキュメントは読めるが、実装は
+サーバのローカルだった。**ツールの説明文を信じず、返ってきた値を見る**。
+ジオコーダの粒度も実測でしか分からなかった（番地はダメ、市はOK）。
+
+もう一つ。指示は「何をせよ」より「なぜそれが必要か」を添えると小さいモデルでも従う。
+「Asia/Tokyo を渡せ」だけより「空だと UTC になって間違う」と書いた方が効いた。
+
+## 2026-08-30 時点の到達点と、いま入っている設定
+
+一日の作業がひと区切りついたので、**次に触るときに必要な事実**だけを残す。
+経緯は上の各節にあるので、ここは現状の写しに絞る。
+
+### 動いているもの
+
+| 項目 | 状態 | 実測 |
+|---|---|---|
+| 日本語会話 | 動作 | `response.created` 170〜210 ms |
+| カメラ | 動作（実際に見て答える） | — |
+| ダンス・感情・首振り | 動作 | — |
+| 天気 | 動作。都市を聞き返さない | 約3秒 |
+| 時刻 | 動作。日本時間で答える | 約5秒 |
+| 検索 | 動作。具体的な語なら要約も出る | 約5〜7秒 |
+| 記憶 | 未確認（reset-apps 事故で消えたまま） | — |
+
+### ロボット側の設定（`.env`）
+
+`/venvs/apps_venv/lib/python3.12/site-packages/reachy_mini_conversation_ja/.env`
+
+```env
+CONVERSATION_BACKEND=openai_realtime
+CONVERSATION_TIMEZONE=Asia/Tokyo
+CONVERSATION_LOCATION="Kobe, Japan"
+REACHY_MINI_CUSTOM_PROFILE=default_ja
+```
+
+**この置き場所は危ない。** site-packages の中なので `pip install` で消えうる
+（今回は RECORD に無かったので残ったが、運任せ）。`~/.local/share/` 側へ移すのが安全。
+
+インスタンスディレクトリは `/home/pollen/.local/share/reachy_mini_conversation_app/`
+で、パッケージを `_ja` に改名した後も**旧名のまま**。ツール選択の上書き
+（`profile_toolsets.json`）はここに置かれるが、現在は存在しない。だから
+`profiles/default_ja/profile.md` の `default_tools` がそのまま効いている。
+**一度ダッシュボードでツールを切り替えると、以後プロフィール側が無視される**ので、
+恒久的な構成はプロフィールで持つ。
+
+### ロボット本体
+
+- タイムゾーンを `Europe/London (BST)` → `Asia/Tokyo (JST)` に変更（出荷時設定のまま8時間ずれていた）。
+  systemd の設定なので再起動しても残る。ただし `journalctl` の表示は
+  デーモン再起動まで旧タイムゾーンのまま。
+- カメラが `No frame available` を返し続けたときは、**Pi の再起動で直る**。
+  原因は私が残した GStreamer パイプラインの詰まりで、アプリのコードではなかった。
+
+### デプロイ手順
+
+```bash
+rsync -a --delete --exclude .git --exclude .venv \
+  /Users/ito/Private/reachy_mini_conversation_app/ pollen@reachy-mini.local:/tmp/conv-app/
+ssh pollen@reachy-mini.local '/venvs/apps_venv/bin/pip install -q --no-deps /tmp/conv-app'
+ssh pollen@reachy-mini.local 'curl -s -X POST http://localhost:8000/api/apps/restart-current-app'
+```
+
+`--no-deps` を付けないと依存解決で長時間かかる。停止は `stop-current-app`
+（`stop-app` は存在しない）。**`POST /cache/reset-apps` は絶対に叩かない**（AGENTS.md 参照）。
+
+### 残っている課題
+
+1. **モデルの一貫性** — `gpt-realtime-2.1-mini` は日本語の事実を自信たっぷりに間違える
+   （藤堂高虎を黒田官兵衛の家老と説明した）。`gpt-realtime-2.1` に上げれば改善見込みだが
+   音声出力が3倍（$10→$32/1M）。判断待ち。
+2. **固有名詞の聞き取り** — 「リーチーミニ」が毎回崩れる（リチウムイオン/リチ/ミツ）。
+   カタカナ外来語も揺れる（ハギングフェイス→成功、ハイキングフェス→失敗）。
+   語彙ヒントを渡せるか未調査。
+3. **人以外の音声に反応する** — テレビや朗読の声も会話として扱う。ローカル VAD は
+   音量しか見ていないので当然。1ターン $0.002 なので実害は小さい。
+4. **記憶の再登録** — `memory.v1.json` が事故で消えた。
+5. **テスト3件が失敗** — `test_personality_avatars.py`。git-lfs 未導入で SVG が
+   ポインタのままなのが原因で、実装とは無関係。
